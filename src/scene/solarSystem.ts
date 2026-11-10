@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { CSS2DObject } from 'three/examples/jsm/renderers/CSS2DRenderer.js';
-import { MOON, PLANETS, SATURN_RINGS, SUN, type BodyId } from '../data/bodies';
+import { MOON, PLANETS, SATURN_RINGS, SUN, URANUS_RINGS, type BodyId } from '../data/bodies';
 import {
   DAY_MS, J2000_MS, elementsAt, orbitPoints, positionAt, satelliteDirection, satelliteOrbitPoints,
 } from '../astro/orbit';
@@ -27,6 +27,8 @@ export interface BodyView {
   /** uydular için ana gezegene uzaklık (km) */
   parentDistanceKm: number | null;
   rotationDays: number;
+  /** Kutup ekseni çizgisi (seçilince görünür) */
+  axis: THREE.Object3D;
 }
 
 const TAU = Math.PI * 2;
@@ -55,9 +57,12 @@ export function createSolarSystem(scene: THREE.Scene, loadTexture: LoadTexture, 
     object.add(mesh);
     scene.add(object);
 
+    const axis = createAxis(2.6); // halkaların dışına taşsın
+    mesh.add(axis);
+
     const view: BodyView = {
       id, kind, object, mesh, radius, radiusKm: phys.radiusKm, distanceAU: 0,
-      rotationDays: phys.rotationDays, ...extra,
+      rotationDays: phys.rotationDays, axis, ...extra,
     };
 
     const div = document.createElement('div');
@@ -92,6 +97,10 @@ export function createSolarSystem(scene: THREE.Scene, loadTexture: LoadTexture, 
   // --- Satürn halkası (gezegen yarıçapı biriminde, mesh'in çocuğu → eğiklikle birlikte döner) ---
   saturn.mesh.add(createRing(SATURN_RINGS.innerKm / saturn.radiusKm, SATURN_RINGS.outerKm / saturn.radiusKm, loadTexture));
 
+  // --- Uranüs halkaları (gezegenle birlikte ~98° yatık) ---
+  const uranus = views.find((v) => v.id === 'uranus')!;
+  uranus.mesh.add(createUranusRings(uranus.radiusKm));
+
   // --- Dünya bulutları ---
   const cloudMat = new THREE.MeshStandardMaterial({ transparent: true, opacity: 0.9, depthWrite: false, visible: false });
   loadTexture('earth_clouds', (t) => {
@@ -121,6 +130,10 @@ export function createSolarSystem(scene: THREE.Scene, loadTexture: LoadTexture, 
 
   return {
     views,
+    /** Yalnızca verilen gövdenin kutup eksenini göster (null: hiçbiri). */
+    showAxis(target: BodyView | null) {
+      for (const v of views) v.axis.visible = v === target;
+    },
     update(ms: number) {
       const days = (ms - J2000_MS) / DAY_MS;
       const T = days / 36525;
@@ -162,20 +175,56 @@ function createGlow(size: number) {
   return sprite;
 }
 
-function createRing(inner: number, outer: number, loadTexture: LoadTexture) {
-  const geo = new THREE.RingGeometry(inner, outer, 128, 1);
-  // Doku yatay bir şerit: u = iç kenardan dış kenara
+/** Halka diski; doku yatay bir şerittir (u = iç kenardan dış kenara). Yarıçaplar gezegen yarıçapı biriminde. */
+function createRingMesh(inner: number, outer: number, mat: THREE.MeshBasicMaterial) {
+  const geo = new THREE.RingGeometry(inner, outer, 256, 1);
   const pos = geo.attributes.position;
   const uv = geo.attributes.uv;
   for (let i = 0; i < pos.count; i++) {
     const r = Math.hypot(pos.getX(i), pos.getY(i));
     uv.setXY(i, (r - inner) / (outer - inner), 0.5);
   }
+  const ring = new THREE.Mesh(geo, mat);
+  ring.rotation.x = -Math.PI / 2; // ekvator düzlemine yatır
+  return ring;
+}
+
+function createRing(inner: number, outer: number, loadTexture: LoadTexture) {
   const mat = new THREE.MeshBasicMaterial({
     color: 0xcfc6b0, side: THREE.DoubleSide, transparent: true, opacity: 0.9, depthWrite: false,
   });
   loadTexture('saturn_ring_alpha', applyMap(mat));
-  const ring = new THREE.Mesh(geo, mat);
-  ring.rotation.x = -Math.PI / 2; // ekvator düzlemine yatır
-  return ring;
+  return createRingMesh(inner, outer, mat);
+}
+
+/** Uranüs halkaları: veriden çizilen şerit dokusu (harici dosya yok). */
+function createUranusRings(planetRadiusKm: number) {
+  const innerKm = URANUS_RINGS[0].radiusKm - 400;
+  const outerKm = URANUS_RINGS[URANUS_RINGS.length - 1].radiusKm + 400;
+  const W = 1024;
+  const c = document.createElement('canvas');
+  c.width = W;
+  c.height = 4;
+  const g = c.getContext('2d')!;
+  const px = (km: number) => ((km - innerKm) / (outerKm - innerKm)) * W;
+  for (const r of URANUS_RINGS) {
+    // Gerçek genişlikler (1–100 km) ekranda pikselin altında kalır; görünürlük için büyütüldü.
+    const w = r.name === 'ε' ? 22 : 9;
+    g.fillStyle = r.name === 'ε' ? 'rgba(205,220,230,0.95)' : 'rgba(175,190,205,0.8)';
+    g.fillRect(px(r.radiusKm) - w / 2, 0, w, 4);
+  }
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  const mat = new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide, transparent: true, depthWrite: false });
+  return createRingMesh(innerKm / planetRadiusKm, outerKm / planetRadiusKm, mat);
+}
+
+/** Kutup ekseni: kuzey yarısı turuncu, güney yarısı mavi. Mesh'in çocuğu (eğiklikle yatar, dönüşten etkilenmez). */
+function createAxis(length: number) {
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute([0, 0, 0, 0, length, 0, 0, 0, 0, 0, -length, 0], 3));
+  geo.setAttribute('color', new THREE.Float32BufferAttribute([1, 0.6, 0.2, 1, 0.6, 0.2, 0.3, 0.6, 1, 0.3, 0.6, 1], 3));
+  const axis = new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ vertexColors: true }));
+  axis.visible = false;
+  return axis;
 }

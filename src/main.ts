@@ -55,11 +55,13 @@ const ui = createUI(
 function select(v: BodyView) {
   selected = v;
   rig.flyTo(v.object, v.radius);
+  system.showAxis(v);
   ui.show(v);
 }
 
 function deselect() {
   selected = null;
+  system.showAxis(null);
   rig.release();
   ui.hide();
 }

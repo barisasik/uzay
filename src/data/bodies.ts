@@ -117,3 +117,20 @@ export const PLANETS: PlanetData[] = [
 
 /** Satürn halkaları (km): C halkası iç kenarı → A halkası dış kenarı */
 export const SATURN_RINGS = { innerKm: 74_500, outerKm: 136_780 };
+
+/**
+ * Uranüs'ün ana halkaları (yarıçap ve genişlik km). Kaynak: NASA Uranian Rings Fact Sheet.
+ * Gerçekte çok dar ve koyudurlar; görünür olsunlar diye çizimde genişlik büyütülür.
+ */
+export const URANUS_RINGS: { name: string; radiusKm: number; widthKm: number }[] = [
+  { name: '6', radiusKm: 41_837, widthKm: 1.5 },
+  { name: '5', radiusKm: 42_234, widthKm: 2 },
+  { name: '4', radiusKm: 42_571, widthKm: 2 },
+  { name: 'α', radiusKm: 44_718, widthKm: 7 },
+  { name: 'β', radiusKm: 45_661, widthKm: 8 },
+  { name: 'η', radiusKm: 47_176, widthKm: 1.6 },
+  { name: 'γ', radiusKm: 47_627, widthKm: 3 },
+  { name: 'δ', radiusKm: 48_300, widthKm: 6 },
+  { name: 'λ', radiusKm: 50_023, widthKm: 2 },
+  { name: 'ε', radiusKm: 51_149, widthKm: 58 },
+];
