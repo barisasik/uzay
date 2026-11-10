@@ -53,6 +53,28 @@ export function positionAt(el: Elements): Vec3 {
   return positionFromE(el, solveKepler(M * D2R, el.e));
 }
 
+/** Düğüm Ω, enlem argümanı u ve eğiklik i için birim yön vektörü (ekliptik). */
+function directionOnOrbit(node: number, u: number, i: number): Vec3 {
+  const cO = Math.cos(node), sO = Math.sin(node), cu = Math.cos(u), su = Math.sin(u);
+  return { x: cO * cu - sO * su * Math.cos(i), y: sO * cu + cO * su * Math.cos(i), z: su * Math.sin(i) };
+}
+
+interface MeanCircularOrbit { L0: number; Lrate: number; node0: number; nodeRate: number; inclinationDeg: number }
+
+/** Uydunun ana gezegene göre yönü (ortalama dairesel yörünge). days: J2000'den bu yana gün. */
+export function satelliteDirection(o: MeanCircularOrbit, days: number): Vec3 {
+  const node = (o.node0 + o.nodeRate * days) * D2R;
+  const L = (o.L0 + o.Lrate * days) * D2R;
+  return directionOnOrbit(node, L - node, o.inclinationDeg * D2R);
+}
+
+export function satelliteOrbitPoints(o: MeanCircularOrbit, days: number, n: number): Vec3[] {
+  const node = (o.node0 + o.nodeRate * days) * D2R;
+  const pts: Vec3[] = [];
+  for (let k = 0; k < n; k++) pts.push(directionOnOrbit(node, (k / n) * Math.PI * 2, o.inclinationDeg * D2R));
+  return pts;
+}
+
 export function orbitPoints(el: Elements, n: number): Vec3[] {
   const pts: Vec3[] = [];
   for (let i = 0; i < n; i++) pts.push(positionFromE(el, (i / n) * Math.PI * 2));

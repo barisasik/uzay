@@ -20,7 +20,19 @@ export const scale = {
       case 'schematic': return 0.4 * Math.pow(km / 1000, 0.45);
     }
   },
+  /** Uydunun ana gezegen merkezine uzaklığı (sahne birimi). */
+  satelliteDistance(km: number, parentRadiusKm: number): number {
+    switch (mode) {
+      case 'schematic':
+        return this.radius(parentRadiusKm) * (1.5 + 0.18 * Math.sqrt(km / parentRadiusKm));
+    }
+  },
 };
+
+/** Ekliptik eksenleri → sahne eksenleri (ölçeksiz; yönler ve göreli konumlar için). */
+export function eclipticAxes(p: Vec3, out: THREE.Vector3): THREE.Vector3 {
+  return out.set(p.x, p.z, -p.y);
+}
 
 /** Ekliptik koordinat (AU, z kuzey) → sahne (y yukarı). Uzaklık radyal olarak ölçeklenir. */
 export function eclipticToScene(p: Vec3, out: THREE.Vector3): THREE.Vector3 {

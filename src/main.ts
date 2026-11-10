@@ -5,7 +5,8 @@ import { CSS2DRenderer } from 'three/examples/jsm/renderers/CSS2DRenderer.js';
 import { createSolarSystem, type BodyView } from './scene/solarSystem';
 import { createStarfield } from './scene/starfield';
 import { CameraRig } from './scene/cameraRig';
-import { createUI } from './ui/ui';
+import { createTextureLoader } from './scene/textures';
+import { createLoader, createUI } from './ui/ui';
 import { simClock } from './time';
 
 // ---------- Render ----------
@@ -34,9 +35,11 @@ scene.add(new THREE.AmbientLight(0xffffff, 0.08));
 scene.add(new THREE.PointLight(0xffffff, 3, 0, 0)); // Güneş'ten, sönümsüz
 
 // ---------- Sahne ----------
+const loader = createLoader();
+const loadTexture = createTextureLoader(renderer, loader.progress, loader.done);
 createStarfield(scene);
 const rig = new CameraRig(camera, controls);
-const system = createSolarSystem(scene, select);
+const system = createSolarSystem(scene, loadTexture, select);
 let selected: BodyView | null = null;
 
 const ui = createUI(
@@ -51,7 +54,7 @@ const ui = createUI(
 
 function select(v: BodyView) {
   selected = v;
-  rig.flyTo(v.mesh, v.radius);
+  rig.flyTo(v.object, v.radius);
   ui.show(v);
 }
 
@@ -78,11 +81,11 @@ function pick(x: number, y: number): BodyView | null {
   let best: BodyView | null = null;
   let bestScore = Infinity;
   for (const v of system.views) {
-    proj.copy(v.mesh.position).project(camera);
+    proj.copy(v.object.position).project(camera);
     if (proj.z > 1) continue; // kameranın arkasında
     const sx = ((proj.x + 1) / 2) * innerWidth;
     const sy = ((1 - proj.y) / 2) * innerHeight;
-    const rPx = (v.radius / camera.position.distanceTo(v.mesh.position)) * focal;
+    const rPx = (v.radius / camera.position.distanceTo(v.object.position)) * focal;
     const d = Math.hypot(sx - x, sy - y);
     if (d < Math.max(16, rPx) && d - rPx < bestScore) {
       best = v;
@@ -100,9 +103,11 @@ addEventListener('resize', () => {
   labelRenderer.setSize(innerWidth, innerHeight);
 });
 
-const clock = new THREE.Clock();
-renderer.setAnimationLoop(() => {
-  const dt = Math.min(clock.getDelta(), 0.1);
+const timer = new THREE.Timer();
+timer.connect(document); // sekme gizlenince dt sıçramasın
+renderer.setAnimationLoop((now) => {
+  timer.update(now);
+  const dt = Math.min(timer.getDelta(), 0.1);
   simClock.tick(dt);
   system.update(simClock.ms);
   rig.update(dt);

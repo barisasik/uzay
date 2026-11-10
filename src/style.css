@@ -65,6 +65,34 @@ button.active { background: var(--accent); border-color: var(--accent); color: #
 .panel p { margin: 0; font-size: 14px; line-height: 1.5; color: #c9d2e6; }
 .panel .close { position: absolute; top: 10px; right: 10px; border: none; font-size: 20px; line-height: 1; padding: 4px 8px; }
 
+.credits {
+  position: fixed;
+  left: 12px;
+  bottom: 10px;
+  font-size: 11px;
+  color: var(--muted);
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+.loader {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  background: radial-gradient(ellipse at center, #0b1226 0%, #000 70%);
+  transition: opacity 0.6s;
+}
+.loader.done { opacity: 0; pointer-events: none; }
+.loader h1 { margin: 0; font-weight: 300; letter-spacing: 0.15em; font-size: 28px; }
+.loader .bar { width: min(280px, 70vw); height: 4px; border-radius: 2px; background: rgba(255,255,255,0.1); overflow: hidden; }
+.loader .fill { width: 0; height: 100%; background: var(--accent); transition: width 0.2s; }
+.loader .text { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+
 .label {
   font-size: 12px;
   padding: 2px 6px;

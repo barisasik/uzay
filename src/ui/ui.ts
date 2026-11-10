@@ -18,6 +18,28 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, text?: 
   return e;
 }
 
+/** Dokular yüklenene kadar ekranı kaplar. */
+export function createLoader() {
+  const pct = new Intl.NumberFormat(locale(), { style: 'percent' });
+  const root = el('div', 'loader');
+  const fill = el('div', 'fill');
+  const bar = el('div', 'bar');
+  bar.append(fill);
+  const text = el('div', 'text', t('ui.loading'));
+  root.append(el('h1', '', t('app.title')), bar, text);
+  document.body.append(root);
+  return {
+    progress(f: number) {
+      fill.style.width = `${f * 100}%`;
+      text.textContent = `${t('ui.loading')} ${pct.format(f)}`;
+    },
+    done() {
+      root.classList.add('done');
+      setTimeout(() => root.remove(), 700);
+    },
+  };
+}
+
 export function createUI(h: UIHandlers, initialSpeed: number) {
   const loc = locale();
   const dateFmt = new Intl.DateTimeFormat(loc, { dateStyle: 'long', timeStyle: 'short' });
@@ -52,7 +74,9 @@ export function createUI(h: UIHandlers, initialSpeed: number) {
   const desc = el('p');
   panel.append(close, title, rows, desc);
 
-  document.body.append(bar, panel);
+  const credits = el('div', 'credits', t('ui.credits'));
+
+  document.body.append(bar, panel, credits);
 
   let distanceCell: HTMLElement | null = null;
   const row = (label: string, value: string) => {
@@ -71,12 +95,12 @@ export function createUI(h: UIHandlers, initialSpeed: number) {
       rows.replaceChildren();
       distanceCell = null;
       row(t('info.diameter'), `${n(v.radiusKm * 2, 0)} ${t('unit.km')}`);
-      if (v.planet) {
-        distanceCell = row(t('info.distance'), '');
-        const d = v.planet.periodDays;
+      if (v.kind === 'star') row(t('info.type'), t('body.sun.type'));
+      if (v.kind === 'planet') distanceCell = row(t('info.distance'), '');
+      if (v.parentDistanceKm !== null) row(t('info.distanceParent'), `${n(v.parentDistanceKm, 0)} ${t('unit.km')}`);
+      if (v.periodDays !== null) {
+        const d = v.periodDays;
         row(t('info.period'), `${n(d)} ${t('unit.day')} (${n(d / 365.25)} ${t('unit.year')})`);
-      } else {
-        row(t('info.type'), t('body.sun.type'));
       }
       this.updateDistance(v);
       panel.classList.remove('hidden');
