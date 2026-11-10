@@ -1,8 +1,8 @@
 import * as THREE from 'three';
 import { CSS2DObject } from 'three/examples/jsm/renderers/CSS2DRenderer.js';
-import { MOON, PLANETS, SATURN_RINGS, SUN, URANUS_RINGS, type BodyId } from '../data/bodies';
+import { MOON, PLANETS, SATELLITES, SATURN_RINGS, SUN, URANUS_RINGS, type BodyId } from '../data/bodies';
 import {
-  DAY_MS, J2000_MS, elementsAt, orbitPoints, positionAt, satelliteDirection, satelliteOrbitPoints,
+  DAY_MS, J2000_MS, elementsAt, orbitPoints, positionAt, satelliteDirection, satelliteOrbitPoints, type Vec3,
 } from '../astro/orbit';
 import { eclipticAxes, eclipticToScene, scale } from '../scale';
 import { bodyName } from '../i18n';
@@ -29,7 +29,27 @@ export interface BodyView {
   rotationDays: number;
   /** Kutup ekseni çizgisi (seçilince görünür) */
   axis: THREE.Object3D;
+  /** Gerçek güneş merkezli ekliptik konum (AU); şematik ölçekten bağımsız */
+  ecl: Vec3;
+  /** Liste ve yer tutucu rengi */
+  color: number;
+  /** Uydular için ana gezegen */
+  parent: BodyView | null;
+  label: CSS2DObject;
 }
+
+/** Güneş'ten dışa doğru sıra; her gezegenin ardından uyduları (yakından uzağa). */
+export const BODY_ORDER: BodyId[] = [
+  'sun',
+  'mercury', 'venus',
+  'earth', 'moon',
+  ...PLANETS.slice(3).flatMap((p) => [
+    p.id,
+    ...SATELLITES.filter((s) => s.parent === p.id).sort((a, b) => a.aKm - b.aKm).map((s) => s.id),
+  ]),
+];
+
+const AU_KM = 149_597_870.7;
 
 const TAU = Math.PI * 2;
 const D2R = Math.PI / 180;
@@ -39,16 +59,22 @@ export function createSolarSystem(scene: THREE.Scene, loadTexture: LoadTexture, 
   const unitSphere = new THREE.SphereGeometry(1, 64, 48);
 
   function makeBody(
-    id: BodyId, kind: BodyKind, phys: { radiusKm: number; tiltDeg: number; rotationDays: number; texture: string; color: number },
+    id: BodyId, kind: BodyKind,
+    phys: { radiusKm: number; tiltDeg: number; rotationDays: number; texture: string | null; color: number },
     extra: Pick<BodyView, 'periodDays' | 'parentDistanceKm'>,
+    parent: BodyView | null = null,
+    /** true: doku renkle çarpılır (Ay dokusundan farklı uydular üretmek için) */
+    tint = false,
   ): BodyView {
     const mat = kind === 'star'
       ? new THREE.MeshBasicMaterial({ color: phys.color })
       : new THREE.MeshStandardMaterial({ color: phys.color, roughness: 1, metalness: 0 });
-    loadTexture(phys.texture, applyMap(mat));
+    if (phys.texture) {
+      loadTexture(phys.texture, tint ? (t) => { mat.map = t; mat.needsUpdate = true; } : applyMap(mat));
+    }
 
     const mesh = new THREE.Mesh(unitSphere, mat);
-    const radius = scale.radius(phys.radiusKm);
+    const radius = kind === 'moon' ? scale.satelliteRadius(phys.radiusKm) : scale.radius(phys.radiusKm);
     mesh.scale.setScalar(radius);
     mesh.rotation.order = 'ZYX'; // önce dönüş (Y), sonra eğiklik (Z)
     mesh.rotation.z = phys.tiltDeg * D2R;
@@ -62,7 +88,8 @@ export function createSolarSystem(scene: THREE.Scene, loadTexture: LoadTexture, 
 
     const view: BodyView = {
       id, kind, object, mesh, radius, radiusKm: phys.radiusKm, distanceAU: 0,
-      rotationDays: phys.rotationDays, axis, ...extra,
+      rotationDays: phys.rotationDays, axis, ecl: { x: 0, y: 0, z: 0 }, color: phys.color,
+      parent, label: null!, ...extra,
     };
 
     const div = document.createElement('div');
@@ -73,6 +100,7 @@ export function createSolarSystem(scene: THREE.Scene, loadTexture: LoadTexture, 
     label.position.set(0, radius * 1.15, 0);
     label.center.set(0.5, 1);
     object.add(label);
+    view.label = label;
 
     views.push(view);
     return view;
@@ -113,15 +141,44 @@ export function createSolarSystem(scene: THREE.Scene, loadTexture: LoadTexture, 
   earth.mesh.add(clouds);
 
   // --- Ay ---
-  const moon = makeBody('moon', 'moon', MOON, { periodDays: MOON.periodDays, parentDistanceKm: MOON.distanceKm });
+  const satOrbitMat = new THREE.LineBasicMaterial({ color: 0x8899bb, transparent: true, opacity: 0.3 });
+  const moon = makeBody('moon', 'moon', MOON, { periodDays: MOON.periodDays, parentDistanceKm: MOON.distanceKm }, earth);
   const moonDist = scale.satelliteDistance(MOON.distanceKm, earth.radiusKm);
   const moonOrbit = new THREE.LineLoop(
     new THREE.BufferGeometry().setFromPoints(
       satelliteOrbitPoints(MOON, nowDays, 128).map((q) => eclipticAxes(q, new THREE.Vector3()).multiplyScalar(moonDist)),
     ),
-    new THREE.LineBasicMaterial({ color: 0x8899bb, transparent: true, opacity: 0.35 }),
+    satOrbitMat,
   );
   earth.object.add(moonOrbit);
+
+  // --- Diğer uydular: gezegenin ekvator düzleminde dairesel yörünge ---
+  const ringOuterRatio: Partial<Record<BodyId, number>> = {
+    saturn: SATURN_RINGS.outerKm / saturn.radiusKm,
+    uranus: (URANUS_RINGS[URANUS_RINGS.length - 1].radiusKm + 400) / uranus.radiusKm,
+  };
+  const sats = SATELLITES.map((s) => {
+    const parent = views.find((v) => v.id === s.parent)!;
+    const tilt = PLANETS.find((p) => p.id === s.parent)!.tiltDeg * D2R;
+    const dist = scale.satelliteDistance(s.aKm, parent.radiusKm, (ringOuterRatio[s.parent] ?? 0) + 0.3);
+    const view = makeBody(
+      s.id, 'moon',
+      { radiusKm: s.radiusKm, tiltDeg: tilt / D2R, rotationDays: s.periodDays, texture: s.texture, color: s.color },
+      { periodDays: Math.abs(s.periodDays), parentDistanceKm: s.aKm },
+      parent, true,
+    );
+    const pts: THREE.Vector3[] = [];
+    for (let i = 0; i < 128; i++) {
+      const a = (i / 128) * TAU;
+      pts.push(new THREE.Vector3(Math.cos(a) * dist, 0, -Math.sin(a) * dist));
+    }
+    const orbit = new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(pts), satOrbitMat);
+    orbit.rotation.z = tilt;
+    parent.object.add(orbit);
+    // Temsili başlangıç açısı (gerçek konum değil): ada göre sabit dağıtılır
+    const phase = ([...s.id].reduce((h, c) => h + c.charCodeAt(0), 0) * 2.399) % TAU;
+    return { s, view, parent, dist, tilt, phase, kmPerUnit: s.aKm / dist };
+  });
 
   const spin = (v: BodyView, days: number) => {
     v.mesh.rotation.y = ((days / v.rotationDays) % 1) * TAU;
@@ -141,16 +198,41 @@ export function createSolarSystem(scene: THREE.Scene, loadTexture: LoadTexture, 
       for (const { data, view } of planetViews) {
         const p = positionAt(elementsAt(data, T));
         view.distanceAU = Math.hypot(p.x, p.y, p.z);
+        view.ecl = p;
         eclipticToScene(p, view.object.position);
         spin(view, days);
       }
       clouds.rotation.y = ((days / 3) % 1) * TAU * 0.1; // bulutlar yavaşça kayar
-      eclipticAxes(satelliteDirection(MOON, days), tmp).multiplyScalar(moonDist);
+      const md = satelliteDirection(MOON, days);
+      const k = MOON.distanceKm / AU_KM;
+      moon.ecl = { x: earth.ecl.x + md.x * k, y: earth.ecl.y + md.y * k, z: earth.ecl.z + md.z * k };
+      moon.distanceAU = Math.hypot(moon.ecl.x, moon.ecl.y, moon.ecl.z);
+      eclipticAxes(md, tmp).multiplyScalar(moonDist);
       moon.object.position.copy(earth.object.position).add(tmp);
-      moon.distanceAU = earth.distanceAU;
       // Ay kilitli dönüş: hep aynı yüzü Dünya'ya döner
       // (dokunun merkezi = yakın yüz = yerel +x; onu Dünya yönüne, yani -tmp'ye çevir)
       moon.mesh.rotation.y = Math.atan2(tmp.z, -tmp.x);
+
+      for (const o of sats) {
+        const th = o.phase + (TAU * days) / o.s.periodDays;
+        const lx = Math.cos(th) * o.dist;
+        const lz = -Math.sin(th) * o.dist;
+        // ekvator düzlemi: gezegen eğikliği kadar Z ekseni etrafında döndür
+        tmp.set(lx * Math.cos(o.tilt), lx * Math.sin(o.tilt), lz);
+        o.view.object.position.copy(o.parent.object.position).add(tmp);
+        const k = o.kmPerUnit / AU_KM; // sahne ofseti → gerçek AU
+        const pe = o.parent.ecl;
+        o.view.ecl = { x: pe.x + tmp.x * k, y: pe.y - tmp.z * k, z: pe.z + tmp.y * k };
+        o.view.distanceAU = Math.hypot(o.view.ecl.x, o.view.ecl.y, o.view.ecl.z);
+        o.view.mesh.rotation.y = th + Math.PI; // kilitli dönüş
+      }
+    },
+    /** Uydu etiketlerini yalnızca gezegenine yakınken göster (seçili olan hep görünür). */
+    updateLabels(camera: THREE.Camera, selected: BodyView | null) {
+      for (const v of views) {
+        if (!v.parent) continue;
+        v.label.visible = v === selected || camera.position.distanceTo(v.parent.object.position) < v.parent.radius * 40;
+      }
     },
   };
 }

@@ -6,7 +6,7 @@ import { createSolarSystem, type BodyView } from './scene/solarSystem';
 import { createStarfield } from './scene/starfield';
 import { CameraRig } from './scene/cameraRig';
 import { createTextureLoader } from './scene/textures';
-import { createLoader, createUI } from './ui/ui';
+import { createBodyList, createLoader, createUI } from './ui/ui';
 import { simClock } from './time';
 
 // ---------- Render ----------
@@ -52,16 +52,20 @@ const ui = createUI(
   simClock.speed,
 );
 
+const bodyList = createBodyList(system.views, select);
+
 function select(v: BodyView) {
   selected = v;
   rig.flyTo(v.object, v.radius);
   system.showAxis(v);
+  bodyList.setSelected(v.id);
   ui.show(v);
 }
 
 function deselect() {
   selected = null;
   system.showAxis(null);
+  bodyList.setSelected(null);
   rig.release();
   ui.hide();
 }
@@ -105,6 +109,7 @@ addEventListener('resize', () => {
   labelRenderer.setSize(innerWidth, innerHeight);
 });
 
+let listTimer = 0;
 const timer = new THREE.Timer();
 timer.connect(document); // sekme gizlenince dt sıçramasın
 renderer.setAnimationLoop((now) => {
@@ -113,8 +118,14 @@ renderer.setAnimationLoop((now) => {
   simClock.tick(dt);
   system.update(simClock.ms);
   rig.update(dt);
+  system.updateLabels(camera, selected);
   controls.update();
   if (selected) ui.updateDistance(selected);
+  listTimer += dt;
+  if (listTimer > 0.25) {
+    listTimer = 0;
+    bodyList.update();
+  }
   ui.setDate(simClock.ms);
   renderer.render(scene, camera);
   labelRenderer.render(scene, camera);

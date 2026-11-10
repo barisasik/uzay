@@ -4,9 +4,16 @@
 //   https://ssd.jpl.nasa.gov/planets/approx_pos.html
 // - Ay ortalama elemanları: Meeus, "Astronomical Algorithms" (J2000)
 
-export type BodyId =
-  | 'sun' | 'mercury' | 'venus' | 'earth' | 'moon' | 'mars'
-  | 'jupiter' | 'saturn' | 'uranus' | 'neptune';
+export type PlanetId = 'mercury' | 'venus' | 'earth' | 'mars' | 'jupiter' | 'saturn' | 'uranus' | 'neptune';
+
+export type SatelliteId =
+  | 'phobos' | 'deimos'
+  | 'io' | 'europa' | 'ganymede' | 'callisto'
+  | 'mimas' | 'enceladus' | 'tethys' | 'dione' | 'rhea' | 'titan' | 'iapetus'
+  | 'miranda' | 'ariel' | 'umbriel' | 'titania' | 'oberon'
+  | 'triton';
+
+export type BodyId = 'sun' | PlanetId | 'moon' | SatelliteId;
 
 /** Kepler elemanları: a (AU), e, I / L / peri (ϖ) / node (Ω) derece. */
 export interface Elements {
@@ -31,7 +38,7 @@ interface Physical {
 }
 
 export interface PlanetData extends Physical {
-  id: Exclude<BodyId, 'sun' | 'moon'>;
+  id: PlanetId;
   periodDays: number;
   /** J2000 değerleri */
   el: Elements;
@@ -113,6 +120,46 @@ export const PLANETS: PlanetData[] = [
     el:   E(30.06992276, 0.00859048, 1.77004347, -55.12002969, 44.96476227, 131.78422574),
     rate: E(0.00026291, 0.00005105, 0.00035372, 218.45945325, -0.32241464, -0.00508664),
   },
+];
+
+/**
+ * Diğer gezegenlerin büyük uyduları. Kaynak: NASA/JPL Planetary Satellite Physical Parameters
+ * ve Mean Orbital Parameters (ssd.jpl.nasa.gov/sats).
+ * aKm: yarı büyük eksen, periodDays: yörünge süresi (negatif = ters yönde, Triton).
+ * Yörüngeler gezegenin ekvator düzleminde dairesel varsayılır. Başlangıç açıları temsilidir,
+ * gerçek anlık konumlar değildir (Ay hariç; o gerçek ortalama konumdadır).
+ * texture: null ise düz renk; 'moon' ise Ay dokusu renkle boyanır (krater görünümü).
+ */
+export interface SatelliteData {
+  id: SatelliteId;
+  parent: PlanetId;
+  radiusKm: number;
+  aKm: number;
+  periodDays: number;
+  color: number;
+  texture: 'moon' | null;
+}
+
+export const SATELLITES: SatelliteData[] = [
+  { id: 'phobos',    parent: 'mars',    radiusKm: 11.27,  aKm: 9_376,     periodDays: 0.31891,   color: 0x9a8a78, texture: 'moon' },
+  { id: 'deimos',    parent: 'mars',    radiusKm: 6.2,    aKm: 23_463,    periodDays: 1.26244,   color: 0xa89884, texture: 'moon' },
+  { id: 'io',        parent: 'jupiter', radiusKm: 1_821.6, aKm: 421_700,  periodDays: 1.769138,  color: 0xf0d860, texture: 'moon' },
+  { id: 'europa',    parent: 'jupiter', radiusKm: 1_560.8, aKm: 671_034,  periodDays: 3.551181,  color: 0xf2e6d0, texture: 'moon' },
+  { id: 'ganymede',  parent: 'jupiter', radiusKm: 2_634.1, aKm: 1_070_412, periodDays: 7.154553, color: 0xb8aa98, texture: 'moon' },
+  { id: 'callisto',  parent: 'jupiter', radiusKm: 2_410.3, aKm: 1_882_709, periodDays: 16.689018, color: 0x8a7a68, texture: 'moon' },
+  { id: 'mimas',     parent: 'saturn',  radiusKm: 198.2,  aKm: 185_539,   periodDays: 0.942422,  color: 0xd0d0d0, texture: 'moon' },
+  { id: 'enceladus', parent: 'saturn',  radiusKm: 252.1,  aKm: 237_948,   periodDays: 1.370218,  color: 0xffffff, texture: null },
+  { id: 'tethys',    parent: 'saturn',  radiusKm: 531.1,  aKm: 294_619,   periodDays: 1.887802,  color: 0xe8e8e0, texture: 'moon' },
+  { id: 'dione',     parent: 'saturn',  radiusKm: 561.4,  aKm: 377_396,   periodDays: 2.736915,  color: 0xe0ded8, texture: 'moon' },
+  { id: 'rhea',      parent: 'saturn',  radiusKm: 763.8,  aKm: 527_108,   periodDays: 4.518212,  color: 0xdcd8d0, texture: 'moon' },
+  { id: 'titan',     parent: 'saturn',  radiusKm: 2_574.7, aKm: 1_221_870, periodDays: 15.945,   color: 0xd9a54a, texture: null },
+  { id: 'iapetus',   parent: 'saturn',  radiusKm: 734.5,  aKm: 3_560_820, periodDays: 79.3215,   color: 0xa89880, texture: 'moon' },
+  { id: 'miranda',   parent: 'uranus',  radiusKm: 235.8,  aKm: 129_900,   periodDays: 1.413479,  color: 0xc8c8c8, texture: 'moon' },
+  { id: 'ariel',     parent: 'uranus',  radiusKm: 578.9,  aKm: 190_900,   periodDays: 2.520379,  color: 0xd4d0c8, texture: 'moon' },
+  { id: 'umbriel',   parent: 'uranus',  radiusKm: 584.7,  aKm: 266_000,   periodDays: 4.144177,  color: 0x8c8882, texture: 'moon' },
+  { id: 'titania',   parent: 'uranus',  radiusKm: 788.4,  aKm: 436_300,   periodDays: 8.705872,  color: 0xcac0b2, texture: 'moon' },
+  { id: 'oberon',    parent: 'uranus',  radiusKm: 761.4,  aKm: 583_519,   periodDays: 13.463239, color: 0xb8ae9e, texture: 'moon' },
+  { id: 'triton',    parent: 'neptune', radiusKm: 1_353.4, aKm: 354_759,  periodDays: -5.876854, color: 0xe0d4c8, texture: 'moon' },
 ];
 
 /** Satürn halkaları (km): C halkası iç kenarı → A halkası dış kenarı */

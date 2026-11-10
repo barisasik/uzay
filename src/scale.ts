@@ -20,11 +20,20 @@ export const scale = {
       case 'schematic': return 0.4 * Math.pow(km / 1000, 0.45);
     }
   },
-  /** Uydunun ana gezegen merkezine uzaklığı (sahne birimi). */
-  satelliteDistance(km: number, parentRadiusKm: number): number {
+  /** Uydu yarıçapı: gezegenlerden ayrışsın diye şematikte biraz küçültülür. */
+  satelliteRadius(km: number): number {
+    switch (mode) {
+      case 'schematic': return 0.6 * this.radius(km);
+    }
+  },
+  /**
+   * Uydunun ana gezegen merkezine uzaklığı (sahne birimi).
+   * minRatio: gezegen yarıçapı cinsinden en yakın mesafe (halkalı gezegenlerde halkanın dışı).
+   */
+  satelliteDistance(km: number, parentRadiusKm: number, minRatio = 1.5): number {
     switch (mode) {
       case 'schematic':
-        return this.radius(parentRadiusKm) * (1.5 + 0.18 * Math.sqrt(km / parentRadiusKm));
+        return this.radius(parentRadiusKm) * (Math.max(1.5, minRatio) + 0.6 * Math.log(km / parentRadiusKm));
     }
   },
 };

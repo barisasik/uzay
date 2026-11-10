@@ -1,6 +1,6 @@
 import { bodyDesc, bodyName, locale, t } from '../i18n';
 import { SPEEDS } from '../time';
-import type { BodyView } from '../scene/solarSystem';
+import { BODY_ORDER, type BodyView } from '../scene/solarSystem';
 
 const AU_MILLION_KM = 149.5978707;
 
@@ -36,6 +36,76 @@ export function createLoader() {
     done() {
       root.classList.add('done');
       setTimeout(() => root.remove(), 700);
+    },
+  };
+}
+
+/** Sol üst: gök cisimleri listesi. "Sırayla" (Güneş'ten dışa) ya da "Yakınlık" (referansa en yakından). */
+export function createBodyList(views: BodyView[], onSelect: (v: BodyView) => void) {
+  const n = (v: number, d = 2) => new Intl.NumberFormat(locale(), { maximumFractionDigits: d }).format(v);
+  const fmtDist = (au: number) => {
+    const km = au * AU_MILLION_KM * 1e6;
+    return km < 1.5e7 ? `${n(km / 1e6)} ${t('unit.millionKm')}` : `${n(au)} ${t('unit.au')}`;
+  };
+
+  let mode: 'order' | 'near' = 'order';
+  let selectedId: string | null = null;
+
+  const root = el('nav', 'bodylist');
+  const head = el('div', 'head');
+  head.append(el('span', 'title', t('list.title')));
+  const tabs = el('div', 'tabs');
+  const tabOrder = el('button', 'active', t('list.order'));
+  const tabNear = el('button', '', t('list.near'));
+  tabs.append(tabOrder, tabNear);
+  const refLine = el('div', 'ref');
+  const ul = el('ul');
+  root.append(head, tabs, refLine, ul);
+  document.body.append(root);
+
+  const ordered = BODY_ORDER.map((id) => views.find((v) => v.id === id)!);
+  const rows = new Map<BodyView, { li: HTMLLIElement; dist: HTMLElement }>();
+  for (const v of ordered) {
+    const li = el('li', v.parent ? 'child' : '');
+    const btn = el('button');
+    const dot = el('span', 'dot');
+    dot.style.background = `#${v.color.toString(16).padStart(6, '0')}`;
+    const dist = el('span', 'dist');
+    if (v.parent) btn.append(el('span', 'branch', '↳'));
+    btn.append(dot, el('span', 'name', bodyName(v.id)), dist);
+    btn.onclick = () => onSelect(v);
+    li.append(btn);
+    ul.append(li);
+    rows.set(v, { li, dist });
+  }
+
+  const setMode = (m: typeof mode) => {
+    mode = m;
+    tabOrder.classList.toggle('active', m === 'order');
+    tabNear.classList.toggle('active', m === 'near');
+    root.classList.toggle('near', m === 'near');
+    if (m === 'order') for (const v of ordered) ul.append(rows.get(v)!.li);
+  };
+  tabOrder.onclick = () => setMode('order');
+  tabNear.onclick = () => setMode('near');
+
+  return {
+    setSelected(id: string | null) {
+      selectedId = id;
+      for (const [v, r] of rows) r.li.classList.toggle('selected', v.id === id);
+    },
+    /** Yakınlık modunda mesafeleri ve sırayı tazeler (referans: seçili gövde, yoksa Dünya). */
+    update() {
+      if (mode !== 'near') return;
+      const ref = views.find((v) => v.id === (selectedId ?? 'earth'))!;
+      refLine.textContent = `${t('list.reference')}: ${bodyName(ref.id)}`;
+      const d = (v: BodyView) => Math.hypot(v.ecl.x - ref.ecl.x, v.ecl.y - ref.ecl.y, v.ecl.z - ref.ecl.z);
+      const sorted = [...ordered].sort((a, b) => d(a) - d(b));
+      sorted.forEach((v, i) => {
+        const r = rows.get(v)!;
+        r.dist.textContent = v === ref ? '—' : fmtDist(d(v));
+        if (ul.children[i] !== r.li) ul.insertBefore(r.li, ul.children[i] ?? null);
+      });
     },
   };
 }
@@ -97,6 +167,7 @@ export function createUI(h: UIHandlers, initialSpeed: number) {
       row(t('info.diameter'), `${n(v.radiusKm * 2, 0)} ${t('unit.km')}`);
       if (v.kind === 'star') row(t('info.type'), t('body.sun.type'));
       if (v.kind === 'planet') distanceCell = row(t('info.distance'), '');
+      if (v.parent) row(t('info.parent'), bodyName(v.parent.id));
       if (v.parentDistanceKm !== null) row(t('info.distanceParent'), `${n(v.parentDistanceKm, 0)} ${t('unit.km')}`);
       if (v.periodDays !== null) {
         const d = v.periodDays;
