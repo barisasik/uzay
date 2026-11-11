@@ -8,6 +8,8 @@ import { CameraRig } from './scene/cameraRig';
 import { createTextureLoader } from './scene/textures';
 import { createBodyList, createLoader, createUI } from './ui/ui';
 import { simClock } from './time';
+import { createBelts, type BeltView } from './scene/belts';
+import { beltText } from './i18n';
 
 // ---------- Render ----------
 const renderer = new THREE.WebGLRenderer({ antialias: true, logarithmicDepthBuffer: true });
@@ -52,7 +54,19 @@ const ui = createUI(
   simClock.speed,
 );
 
-const bodyList = createBodyList(system.views, select);
+const belts = createBelts(scene, selectBelt);
+belts.setLabels((id) => beltText(id, 'name'));
+const jupiter = system.views.find((v) => v.id === 'jupiter')!;
+
+const bodyList = createBodyList(system.views, select, belts.views, selectBelt);
+
+function selectBelt(b: BeltView) {
+  selected = null;
+  rig.flyTo(b.focus, b.viewRadius, b.id === 'trojans' ? 0.35 : 0.7);
+  system.showAxis(null);
+  bodyList.setSelected(b.id);
+  ui.showBelt(b);
+}
 
 function select(v: BodyView) {
   selected = v;
@@ -75,9 +89,12 @@ addEventListener('keydown', (e) => e.key === 'Escape' && deselect());
 // ---------- Tıklama ile seçim (ekran uzayında en yakın gövde) ----------
 const down = new THREE.Vector2();
 const proj = new THREE.Vector3();
+let touchSlop = 16;
 renderer.domElement.addEventListener('pointerdown', (e) => down.set(e.clientX, e.clientY));
 renderer.domElement.addEventListener('pointerup', (e) => {
-  if (Math.hypot(e.clientX - down.x, e.clientY - down.y) > 5) return; // sürükleme
+  const touch = e.pointerType === 'touch';
+  if (Math.hypot(e.clientX - down.x, e.clientY - down.y) > (touch ? 10 : 5)) return; // sürükleme
+  touchSlop = touch ? 28 : 16; // parmakla dokunmada daha geniş hedef
   const v = pick(e.clientX, e.clientY);
   if (v) select(v);
 });
@@ -93,7 +110,7 @@ function pick(x: number, y: number): BodyView | null {
     const sy = ((1 - proj.y) / 2) * innerHeight;
     const rPx = (v.radius / camera.position.distanceTo(v.object.position)) * focal;
     const d = Math.hypot(sx - x, sy - y);
-    if (d < Math.max(16, rPx) && d - rPx < bestScore) {
+    if (d < Math.max(touchSlop, rPx) && d - rPx < bestScore) {
       best = v;
       bestScore = d - rPx;
     }
@@ -117,6 +134,7 @@ renderer.setAnimationLoop((now) => {
   const dt = Math.min(timer.getDelta(), 0.1);
   simClock.tick(dt);
   system.update(simClock.ms);
+  belts.update(simClock.ms, jupiter.ecl);
   rig.update(dt);
   system.updateLabels(camera, selected);
   controls.update();

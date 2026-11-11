@@ -13,9 +13,9 @@ export class CameraRig {
 
   constructor(private camera: THREE.PerspectiveCamera, private controls: OrbitControls) {}
 
-  flyTo(obj: THREE.Object3D, radius: number) {
+  flyTo(obj: THREE.Object3D, radius: number, minElev = 0.25) {
     const dir = this.camera.position.clone().sub(obj.position).normalize();
-    dir.y = Math.max(dir.y, 0.25); // biraz yukarıdan bak
+    dir.y = Math.max(dir.y, minElev); // biraz yukarıdan bak
     dir.normalize();
     this.focus = obj;
     this.fly = {

@@ -1,6 +1,9 @@
-import { bodyDesc, bodyName, locale, t } from '../i18n';
+import { beltText, bodyDesc, bodyName, locale, t } from '../i18n';
 import { SPEEDS } from '../time';
 import { BODY_ORDER, type BodyView } from '../scene/solarSystem';
+import type { BeltView } from '../scene/belts';
+
+const hex = (c: number) => `#${c.toString(16).padStart(6, '0')}`;
 
 const AU_MILLION_KM = 149.5978707;
 
@@ -41,7 +44,12 @@ export function createLoader() {
 }
 
 /** Sol üst: gök cisimleri listesi. "Sırayla" (Güneş'ten dışa) ya da "Yakınlık" (referansa en yakından). */
-export function createBodyList(views: BodyView[], onSelect: (v: BodyView) => void) {
+export function createBodyList(
+  views: BodyView[],
+  onSelect: (v: BodyView) => void,
+  belts: BeltView[],
+  onSelectBelt: (b: BeltView) => void,
+) {
   const n = (v: number, d = 2) => new Intl.NumberFormat(locale(), { maximumFractionDigits: d }).format(v);
   const fmtDist = (au: number) => {
     const km = au * AU_MILLION_KM * 1e6;
@@ -69,7 +77,9 @@ export function createBodyList(views: BodyView[], onSelect: (v: BodyView) => voi
   tabs.append(tabOrder, tabNear);
   const refLine = el('div', 'ref');
   const ul = el('ul');
-  root.append(head, tabs, refLine, ul);
+  const beltHead = el('div', 'section', t('list.belts'));
+  const beltUl = el('ul', 'belts');
+  root.append(head, tabs, refLine, ul, beltHead, beltUl);
   document.body.append(root);
   let startCollapsed = false;
   try { startCollapsed = localStorage.getItem(STORE_KEY) === '1'; } catch { /* yok say */ }
@@ -81,7 +91,7 @@ export function createBodyList(views: BodyView[], onSelect: (v: BodyView) => voi
     const li = el('li', v.parent ? 'child' : '');
     const btn = el('button');
     const dot = el('span', 'dot');
-    dot.style.background = `#${v.color.toString(16).padStart(6, '0')}`;
+    dot.style.background = hex(v.color);
     const dist = el('span', 'dist');
     if (v.parent) btn.append(el('span', 'branch', '↳'));
     btn.append(dot, el('span', 'name', bodyName(v.id)), dist);
@@ -89,6 +99,18 @@ export function createBodyList(views: BodyView[], onSelect: (v: BodyView) => voi
     li.append(btn);
     ul.append(li);
     rows.set(v, { li, dist });
+  }
+  const beltRows = new Map<BeltView, HTMLLIElement>();
+  for (const b of belts) {
+    const li = el('li');
+    const btn = el('button');
+    const dot = el('span', 'dot belt');
+    dot.style.borderColor = hex(b.color);
+    btn.append(dot, el('span', 'name', beltText(b.id, 'name')));
+    btn.onclick = () => onSelectBelt(b);
+    li.append(btn);
+    beltUl.append(li);
+    beltRows.set(b, li);
   }
 
   const setMode = (m: typeof mode) => {
@@ -105,11 +127,12 @@ export function createBodyList(views: BodyView[], onSelect: (v: BodyView) => voi
     setSelected(id: string | null) {
       selectedId = id;
       for (const [v, r] of rows) r.li.classList.toggle('selected', v.id === id);
+      for (const [b, li] of beltRows) li.classList.toggle('selected', b.id === id);
     },
     /** Yakınlık modunda mesafeleri ve sırayı tazeler (referans: seçili gövde, yoksa Dünya). */
     update() {
       if (mode !== 'near') return;
-      const ref = views.find((v) => v.id === (selectedId ?? 'earth'))!;
+      const ref = views.find((v) => v.id === selectedId) ?? views.find((v) => v.id === 'earth')!;
       refLine.textContent = `${t('list.reference')}: ${bodyName(ref.id)}`;
       const d = (v: BodyView) => Math.hypot(v.ecl.x - ref.ecl.x, v.ecl.y - ref.ecl.y, v.ecl.z - ref.ecl.z);
       const sorted = [...ordered].sort((a, b) => d(a) - d(b));
@@ -158,7 +181,10 @@ export function createUI(h: UIHandlers, initialSpeed: number) {
 
   const credits = el('div', 'credits', t('ui.credits'));
 
-  document.body.append(bar, panel, credits);
+  // Üst çubuk, sol listenin sağında kalan alanda ortalanır (dar ekranda alta iner).
+  const hud = el('div', 'hud');
+  hud.append(bar);
+  document.body.append(hud, panel, credits);
 
   let distanceCell: HTMLElement | null = null;
   const row = (label: string, value: string) => {
@@ -186,6 +212,16 @@ export function createUI(h: UIHandlers, initialSpeed: number) {
         row(t('info.period'), `${n(d)} ${t('unit.day')} (${n(d / 365.25)} ${t('unit.year')})`);
       }
       this.updateDistance(v);
+      panel.classList.remove('hidden');
+    },
+    showBelt(b: BeltView) {
+      title.textContent = beltText(b.id, 'name');
+      desc.textContent = beltText(b.id, 'desc');
+      rows.replaceChildren();
+      distanceCell = null;
+      row(t('info.type'), t('belt.kind'));
+      row(t('info.region'), `${n(b.innerAU, 1)}–${n(b.outerAU, 1)} ${t('unit.au')}`);
+      row(t('info.known'), beltText(b.id, 'known'));
       panel.classList.remove('hidden');
     },
     updateDistance(v: BodyView) {

@@ -1,4 +1,5 @@
 import type { BodyId } from './data/bodies';
+import type { BeltId } from './scene/belts';
 
 // Arayüzdeki tüm metinler burada. Faz 6'da `en` eklenecek.
 const tr = {
@@ -21,6 +22,24 @@ const tr = {
   'ui.loading': 'Dokular yükleniyor',
   'ui.credits': 'Dokular: Solar System Scope (CC BY 4.0)',
   'app.title': 'Uzay Gezgini',
+  'list.belts': 'Kuşaklar',
+  'info.region': "Güneş'e uzaklık",
+  'info.known': 'Bilinen cisim',
+  'belt.kind': 'Küçük cisim kuşağı',
+
+  'belt.asteroid.name': 'Asteroit Kuşağı',
+  'belt.asteroid.known': '1 milyondan fazla',
+  'belt.asteroid.desc':
+    "Mars ile Jüpiter arasında, kayalık ve metalik milyonlarca küçük cisim. Hepsinin toplam kütlesi Ay'ınkinin yalnızca %3'ü kadardır. En büyüğü cüce gezegen Ceres'tir. Aradaki boşluklar (Kirkwood boşlukları) Jüpiter'in kütle çekimiyle temizlenmiştir.",
+  'belt.trojans.name': 'Truva Asteroitleri',
+  'belt.trojans.known': '15 binden fazla',
+  'belt.trojans.desc':
+    "Jüpiter'le aynı yörüngede, onun 60° önünde ve arkasında iki büyük küme. Güneş ile Jüpiter'in çekimlerinin dengelendiği bu noktalarda (L4 ve L5) hapsolmuşlardır. NASA'nın Lucy aracı bu asteroitleri ziyaret ediyor.",
+  'belt.kuiper.name': 'Kuiper Kuşağı',
+  'belt.kuiper.known': '3 binden fazla',
+  'belt.kuiper.desc':
+    "Neptün'ün ötesinde, buzlu cisimlerden oluşan geniş halka. Plüton, Haumea ve Makemake gibi cüce gezegenler buradadır. Kısa dönemli kuyruklu yıldızların çoğu buradan gelir. Daha ötesindeki dev Oort Bulutu ise gerçek ölçek modunda (Faz 5) eklenecek.",
+
   'info.distanceParent': 'Gezegenine uzaklık',
   'info.parent': 'Bağlı olduğu',
 
@@ -104,3 +123,4 @@ export const t = (k: Key): string => dicts[lang][k];
 export const locale = () => t('meta.locale');
 export const bodyName = (id: BodyId) => t(`body.${id}.name`);
 export const bodyDesc = (id: BodyId) => t(`body.${id}.desc`);
+export const beltText = (id: BeltId, f: 'name' | 'desc' | 'known') => t(`belt.${id}.${f}`);
