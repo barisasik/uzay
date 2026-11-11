@@ -16,6 +16,8 @@ const tr = {
   'list.order': 'Sırayla',
   'list.near': 'Yakınlık',
   'list.reference': 'Referans',
+  'list.collapse': 'Listeyi gizle',
+  'list.expand': 'Listeyi göster',
   'ui.loading': 'Dokular yükleniyor',
   'ui.credits': 'Dokular: Solar System Scope (CC BY 4.0)',
   'app.title': 'Uzay Gezgini',

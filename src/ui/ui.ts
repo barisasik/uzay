@@ -53,7 +53,16 @@ export function createBodyList(views: BodyView[], onSelect: (v: BodyView) => voi
 
   const root = el('nav', 'bodylist');
   const head = el('div', 'head');
-  head.append(el('span', 'title', t('list.title')));
+  const collapseBtn = el('button', 'collapse');
+  head.append(el('span', 'title', t('list.title')), collapseBtn);
+  const STORE_KEY = 'uzay.bodylist.collapsed';
+  const setCollapsed = (c: boolean) => {
+    root.classList.toggle('collapsed', c);
+    collapseBtn.textContent = c ? '▾' : '▴';
+    collapseBtn.title = c ? t('list.expand') : t('list.collapse');
+    try { localStorage.setItem(STORE_KEY, c ? '1' : '0'); } catch { /* depolama kapalı olabilir */ }
+  };
+  head.onclick = () => setCollapsed(!root.classList.contains('collapsed'));
   const tabs = el('div', 'tabs');
   const tabOrder = el('button', 'active', t('list.order'));
   const tabNear = el('button', '', t('list.near'));
@@ -62,6 +71,9 @@ export function createBodyList(views: BodyView[], onSelect: (v: BodyView) => voi
   const ul = el('ul');
   root.append(head, tabs, refLine, ul);
   document.body.append(root);
+  let startCollapsed = false;
+  try { startCollapsed = localStorage.getItem(STORE_KEY) === '1'; } catch { /* yok say */ }
+  setCollapsed(startCollapsed);
 
   const ordered = BODY_ORDER.map((id) => views.find((v) => v.id === id)!);
   const rows = new Map<BodyView, { li: HTMLLIElement; dist: HTMLElement }>();

@@ -79,7 +79,21 @@ button.active { background: var(--accent); border-color: var(--accent); color: #
   backdrop-filter: blur(8px);
   font-size: 13px;
 }
-.bodylist .head { font-weight: 600; margin: 2px 4px 8px; }
+.bodylist .head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-weight: 600;
+  margin: 2px 4px 8px;
+  cursor: pointer;
+  user-select: none;
+}
+.bodylist .collapse { border: none; padding: 0 4px; font-size: 14px; line-height: 1; color: var(--muted); }
+.bodylist.collapsed { width: auto; padding: 8px 10px; }
+.bodylist.collapsed .head { margin: 0; gap: 10px; }
+.bodylist.collapsed .tabs,
+.bodylist.collapsed .ref,
+.bodylist.collapsed ul { display: none !important; }
 .bodylist .tabs { display: flex; gap: 4px; margin-bottom: 6px; }
 .bodylist .tabs button { flex: 1; padding: 4px 6px; font-size: 12px; }
 .bodylist .ref { display: none; color: var(--muted); font-size: 11px; margin: 0 4px 6px; }
