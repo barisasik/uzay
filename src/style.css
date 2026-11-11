@@ -120,6 +120,31 @@ button.active { background: var(--accent); border-color: var(--accent); color: #
 }
 .bodylist.near .section,
 .bodylist.near ul.belts { display: none; }
+.bodylist .scope { display: flex; gap: 4px; margin-bottom: 8px; }
+.bodylist .scope button { flex: 1; padding: 5px 4px; font-size: 12px; white-space: nowrap; }
+.bodylist.collapsed .scope { display: none; }
+/* Galaksi kapsamı: güneş sistemi bölümleri gizli, Yerel Grup görünür */
+.bodylist .galaxies-head,
+.bodylist ul.galaxies { display: none; }
+.bodylist.galaxy .galaxies-head { display: block; margin-top: 2px; border-top: none; padding-top: 0; }
+.bodylist.galaxy ul.galaxies { display: block; }
+.bodylist.galaxy .tabs,
+.bodylist.galaxy .ref,
+.bodylist.galaxy ul.bodies,
+.bodylist.galaxy .belts-head,
+.bodylist.galaxy ul.belts { display: none !important; }
+.bodylist.collapsed ul.galaxies,
+.bodylist.collapsed .galaxies-head { display: none !important; }
+.bodylist .dot.gal { background: radial-gradient(circle, #fff 0%, #cfd8ff 35%, transparent 75%); }
+.bodylist .dot.gal.spiral,
+.bodylist .dot.gal.barred { background: radial-gradient(circle, #ffe6b0 0%, #9fb6ff 45%, transparent 80%); }
+.bodylist .dot.gal.irregular { background: radial-gradient(circle, #cfe0ff 0%, #7f9fe6 50%, transparent 80%); }
+.hud.galaxy .date,
+.hud.galaxy .group,
+.hud.galaxy .today { display: none; }
+.label.galaxy-label { font-size: 11px; color: #c8d0e6; background: rgba(10, 14, 24, 0.4); }
+.label.galaxy-label.major { font-size: 13px; color: #fff; }
+.label.sun-here { font-size: 11px; color: #ffe08a; background: rgba(10, 14, 24, 0.55); }
 .bodylist .dot.belt { background: transparent; border: 2px dotted; box-sizing: border-box; }
 .bodylist .tabs { display: flex; gap: 4px; margin-bottom: 6px; }
 .bodylist .tabs button { flex: 1; padding: 4px 6px; font-size: 12px; }

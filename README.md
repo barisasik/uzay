@@ -32,3 +32,4 @@ node scripts/convert-textures.mjs <klasör>
 - **Gezegen yörünge elemanları:** NASA JPL, [Approximate Positions of the Planets](https://ssd.jpl.nasa.gov/planets/approx_pos.html)
 - **Yarıçap, dönüş süresi, eksen eğikliği:** NASA [Planetary Fact Sheet](https://nssdc.gsfc.nasa.gov/planetary/factsheet/)
 - **Ay ortalama yörünge elemanları:** J. Meeus, *Astronomical Algorithms*
+- **Yerel Grup galaksileri:** A. McConnachie (2012), *The observed properties of dwarf galaxies in and around the Local Group*, AJ 144, 4; NED. Konumlar yuvarlanmıştır; galaksi görüntüleri yordamsal (procedural) olarak üretilir.

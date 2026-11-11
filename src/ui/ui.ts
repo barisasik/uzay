@@ -1,7 +1,10 @@
-import { beltText, bodyDesc, bodyName, locale, t } from '../i18n';
+import { beltText, bodyDesc, bodyName, galaxyDesc, galaxyName, locale, t } from '../i18n';
 import { SPEEDS } from '../time';
 import { BODY_ORDER, type BodyView } from '../scene/solarSystem';
 import type { BeltView } from '../scene/belts';
+import type { GalaxyView } from '../scene/galaxies';
+
+export type Scope = 'solar' | 'galaxy';
 
 const hex = (c: number) => `#${c.toString(16).padStart(6, '0')}`;
 
@@ -49,6 +52,9 @@ export function createBodyList(
   onSelect: (v: BodyView) => void,
   belts: BeltView[],
   onSelectBelt: (b: BeltView) => void,
+  galaxies: GalaxyView[],
+  onSelectGalaxy: (g: GalaxyView) => void,
+  onScope: (s: Scope) => void,
 ) {
   const n = (v: number, d = 2) => new Intl.NumberFormat(locale(), { maximumFractionDigits: d }).format(v);
   const fmtDist = (au: number) => {
@@ -76,10 +82,18 @@ export function createBodyList(
   const tabNear = el('button', '', t('list.near'));
   tabs.append(tabOrder, tabNear);
   const refLine = el('div', 'ref');
-  const ul = el('ul');
-  const beltHead = el('div', 'section', t('list.belts'));
+  const scopeBar = el('div', 'scope');
+  const scopeSolar = el('button', 'active', t('scope.solar'));
+  const scopeGal = el('button', '', t('scope.galaxies'));
+  scopeSolar.onclick = () => onScope('solar');
+  scopeGal.onclick = () => onScope('galaxy');
+  scopeBar.append(scopeSolar, scopeGal);
+  const ul = el('ul', 'bodies');
+  const beltHead = el('div', 'section belts-head', t('list.belts'));
   const beltUl = el('ul', 'belts');
-  root.append(head, tabs, refLine, ul, beltHead, beltUl);
+  const galHead = el('div', 'section galaxies-head', t('list.localGroup'));
+  const galUl = el('ul', 'galaxies');
+  root.append(head, scopeBar, tabs, refLine, ul, beltHead, beltUl, galHead, galUl);
   document.body.append(root);
   let startCollapsed = false;
   try { startCollapsed = localStorage.getItem(STORE_KEY) === '1'; } catch { /* yok say */ }
@@ -112,6 +126,18 @@ export function createBodyList(
     beltUl.append(li);
     beltRows.set(b, li);
   }
+  const galRows = new Map<GalaxyView, HTMLLIElement>();
+  for (const g of galaxies) {
+    const li = el('li', g.parent ? 'child' : '');
+    const btn = el('button');
+    if (g.parent) btn.append(el('span', 'branch', '↳'));
+    const dot = el('span', `dot gal ${g.data.type}`);
+    btn.append(dot, el('span', 'name', galaxyName(g.id)));
+    btn.onclick = () => onSelectGalaxy(g);
+    li.append(btn);
+    galUl.append(li);
+    galRows.set(g, li);
+  }
 
   const setMode = (m: typeof mode) => {
     mode = m;
@@ -128,6 +154,13 @@ export function createBodyList(
       selectedId = id;
       for (const [v, r] of rows) r.li.classList.toggle('selected', v.id === id);
       for (const [b, li] of beltRows) li.classList.toggle('selected', b.id === id);
+      for (const [g, li] of galRows) li.classList.toggle('selected', g.id === id);
+    },
+    setScope(s: Scope) {
+      root.classList.toggle('galaxy', s === 'galaxy');
+      scopeSolar.classList.toggle('active', s === 'solar');
+      scopeGal.classList.toggle('active', s === 'galaxy');
+      root.scrollTop = 0;
     },
     /** Yakınlık modunda mesafeleri ve sırayı tazeler (referans: seçili gövde, yoksa Dünya). */
     update() {
@@ -163,7 +196,7 @@ export function createUI(h: UIHandlers, initialSpeed: number) {
     };
     speeds.append(b);
   }
-  const today = el('button', '', t('ui.today'));
+  const today = el('button', 'today', t('ui.today'));
   today.onclick = h.onToday;
   const labels = el('button', 'active', t('ui.labels'));
   labels.onclick = () => h.onLabels(labels.classList.toggle('active'));
@@ -213,6 +246,24 @@ export function createUI(h: UIHandlers, initialSpeed: number) {
       }
       this.updateDistance(v);
       panel.classList.remove('hidden');
+    },
+    showGalaxy(g: GalaxyView) {
+      const d = g.data;
+      const ly = (kly: number) =>
+        kly >= 1000 ? `${n(kly / 1000, 2)} ${t('unit.millionLy')}` : `${n(kly, 0)} ${t('unit.thousandLy')}`;
+      title.textContent = galaxyName(g.id);
+      desc.textContent = galaxyDesc(g.id);
+      rows.replaceChildren();
+      distanceCell = null;
+      row(t('info.type'), t(`gtype.${d.type}`));
+      if (d.id === 'milkyway') row(t('info.sunToCenter'), `~${ly(26.7)}`);
+      else row(t('info.distanceUs'), `~${ly(d.distKly)}`);
+      if (d.showDiameter) row(t('info.diameter'), `~${ly(d.diameterKly)}`);
+      if (g.parent) row(t('info.parent'), galaxyName(g.parent.id));
+      panel.classList.remove('hidden');
+    },
+    setScope(s: Scope) {
+      hud.classList.toggle('galaxy', s === 'galaxy');
     },
     showBelt(b: BeltView) {
       title.textContent = beltText(b.id, 'name');

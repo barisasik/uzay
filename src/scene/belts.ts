@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { CSS2DObject } from 'three/examples/jsm/renderers/CSS2DRenderer.js';
 import { DAY_MS, J2000_MS, type Vec3 } from '../astro/orbit';
 import { eclipticToScene, scale } from '../scale';
+import { gauss, mulberry32 } from '../util/random';
 
 export type BeltId = 'asteroid' | 'trojans' | 'kuiper';
 
@@ -16,17 +17,6 @@ export interface BeltView {
   /** Odaklanınca kameranın uzaklığı için "yarıçap" (sahne birimi). */
   viewRadius: number;
   label: CSS2DObject;
-}
-
-/** Tekrarlanabilir rastgele sayı (her yüklemede aynı kuşak). */
-function mulberry32(seed: number) {
-  return () => {
-    seed |= 0;
-    seed = (seed + 0x6d2b79f5) | 0;
-    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
 }
 
 const D2R = Math.PI / 180;
@@ -108,12 +98,6 @@ function makePoints(list: Particle[], color: number, size: number, opacity: numb
   pts.frustumCulled = false; // gerçek konumlar shader'da
   return pts;
 }
-
-const gauss = (rnd: () => number) => {
-  // Box–Muller
-  const u = Math.max(1e-9, rnd());
-  return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * rnd());
-};
 
 /** Asteroit Kuşağı: 2,1–3,3 AU; Jüpiter rezonanslarındaki Kirkwood boşlukları dahil. */
 function asteroidBelt(rnd: () => number, n: number): Particle[] {

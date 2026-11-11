@@ -1,5 +1,6 @@
 import type { BodyId } from './data/bodies';
 import type { BeltId } from './scene/belts';
+import type { GalaxyId } from './data/galaxies';
 
 // Arayüzdeki tüm metinler burada. Faz 6'da `en` eklenecek.
 const tr = {
@@ -39,6 +40,63 @@ const tr = {
   'belt.kuiper.known': '3 binden fazla',
   'belt.kuiper.desc':
     "Neptün'ün ötesinde, buzlu cisimlerden oluşan geniş halka. Plüton, Haumea ve Makemake gibi cüce gezegenler buradadır. Kısa dönemli kuyruklu yıldızların çoğu buradan gelir. Daha ötesindeki dev Oort Bulutu ise gerçek ölçek modunda (Faz 5) eklenecek.",
+
+  'scope.solar': 'Güneş Sistemi',
+  'scope.galaxies': 'Galaksiler',
+  'list.localGroup': 'Yerel Grup',
+  'galaxy.sunHere': 'Güneş · buradasınız',
+  'info.distanceUs': 'Bize uzaklık',
+  'info.sunToCenter': "Güneş'in merkeze uzaklığı",
+  'unit.thousandLy': 'bin ışık yılı',
+  'unit.millionLy': 'milyon ışık yılı',
+  'gtype.barred': 'Çubuklu sarmal galaksi',
+  'gtype.spiral': 'Sarmal galaksi',
+  'gtype.irregular': 'Düzensiz galaksi',
+  'gtype.elliptical': 'Cüce eliptik galaksi',
+  'gtype.dsph': 'Cüce küresel galaksi',
+
+  'galaxy.milkyway.name': 'Samanyolu',
+  'galaxy.milkyway.desc':
+    "İçinde yaşadığımız çubuklu sarmal galaksi; 100–400 milyar yıldız barındırır. Güneş, merkezden yaklaşık 26 bin ışık yılı uzakta, Orion Kolu denen küçük bir kolda bulunur ve merkez çevresindeki bir turunu yaklaşık 230 milyon yılda tamamlar.",
+  'galaxy.m31.name': 'Andromeda (M31)',
+  'galaxy.m31.desc':
+    "Bize en yakın büyük sarmal galaksi; yaklaşık 1 trilyon yıldız barındırır. Karanlık bir gökyüzünde çıplak gözle görülebilen en uzak cisimdir. Bize saniyede yaklaşık 110 km hızla yaklaşıyor; 4–5 milyar yıl sonra Samanyolu ile çarpışıp tek bir dev galaksiye dönüşecekler.",
+  'galaxy.m33.name': 'Üçgen (M33)',
+  'galaxy.m33.desc':
+    "Yerel Grup'un üçüncü büyük galaksisi. Çok karanlık bir gökyüzünde çıplak gözle seçilebilir. İçindeki NGC 604, bilinen en büyük yıldız doğum bölgelerinden biridir. Andromeda'nın uydusu olabilir.",
+  'galaxy.lmc.name': 'Büyük Macellan Bulutu',
+  'galaxy.lmc.desc':
+    "Samanyolu'nun en büyük uydu galaksisi. Güney yarımküreden çıplak gözle bir bulut parçası gibi görünür. Dev yıldız doğum bölgesi Tarantula Bulutsusu ve 1987'de patlayan SN 1987A süpernovası buradadır.",
+  'galaxy.smc.name': 'Küçük Macellan Bulutu',
+  'galaxy.smc.desc':
+    "Büyük Macellan Bulutu'nun küçük komşusu. İkisi birbirini ve Samanyolu'nu çekimiyle çekiştirir; aralarından uzanan gaz akıntısına Macellan Akıntısı denir.",
+  'galaxy.sgr.name': 'Yay Cüce Galaksisi',
+  'galaxy.sgr.desc':
+    "Samanyolu'nun diskinin içinden geçerken parçalanan cüce galaksi. Yıldızları gökyüzünü saran uzun bir akıntıya dönüşmüş; Samanyolu onu yavaş yavaş yutuyor.",
+  'galaxy.draco.name': 'Ejderha Cücesi',
+  'galaxy.draco.desc': 'Samanyolu’nun sönük bir uydusu. Kütlesinin büyük kısmı karanlık maddedir; bu yüzden karanlık madde araştırmalarında sık incelenir.',
+  'galaxy.umi.name': 'Küçük Ayı Cücesi',
+  'galaxy.umi.desc': 'Samanyolu’nun uydusu. Yıldızlarının neredeyse hepsi 10 milyar yaşından yaşlıdır.',
+  'galaxy.sculptor.name': 'Heykeltıraş Cücesi',
+  'galaxy.sculptor.desc': 'Keşfedilen ilk cüce küresel galaksi (1937). Samanyolu’nun uydusudur.',
+  'galaxy.sextans.name': 'Sekstant Cücesi',
+  'galaxy.sextans.desc': 'Çok sönük ve dağınık bir cüce galaksi; Samanyolu’nun uydusudur.',
+  'galaxy.carina.name': 'Karina Cücesi',
+  'galaxy.carina.desc': 'Yıldızları birkaç ayrı dalgada oluşmuş bir cüce galaksi; Samanyolu’nun uydusudur.',
+  'galaxy.fornax.name': 'Fırın Cücesi',
+  'galaxy.fornax.desc': 'Samanyolu’nun en parlak cüce küresel uydularından; kendi küresel yıldız kümeleri vardır.',
+  'galaxy.leo1.name': 'Aslan I',
+  'galaxy.leo1.desc': 'Samanyolu’nun en uzak uydularından. Parlak Regulus yıldızının hemen yanında göründüğü için gözlemesi zordur.',
+  'galaxy.leo2.name': 'Aslan II',
+  'galaxy.leo2.desc': 'Samanyolu’nun uzak ve küçük bir cüce uydusu.',
+  'galaxy.ngc6822.name': 'Barnard Galaksisi (NGC 6822)',
+  'galaxy.ngc6822.desc': 'Yerel Grup’taki düzensiz cüce galaksilerden. Parlak yıldız doğum bölgeleriyle doludur.',
+  'galaxy.m32.name': 'M32',
+  'galaxy.m32.desc': 'Andromeda’nın yanındaki küçük ve çok yoğun eliptik galaksi. Muhtemelen dış yıldızlarını Andromeda’ya kaptırmış daha büyük bir galaksinin çekirdeğidir.',
+  'galaxy.m110.name': 'M110',
+  'galaxy.m110.desc': 'Andromeda’nın cüce eliptik uydusu. Merkezinde genç yıldızlar ve toz bölgeleri görülür.',
+  'galaxy.ic1613.name': 'IC 1613',
+  'galaxy.ic1613.desc': 'Yıldız oluşumu az olan, sakin bir düzensiz cüce galaksi. Yerel Grup’un uzak bir köşesindedir.',
 
   'info.distanceParent': 'Gezegenine uzaklık',
   'info.parent': 'Bağlı olduğu',
@@ -123,4 +181,6 @@ export const t = (k: Key): string => dicts[lang][k];
 export const locale = () => t('meta.locale');
 export const bodyName = (id: BodyId) => t(`body.${id}.name`);
 export const bodyDesc = (id: BodyId) => t(`body.${id}.desc`);
-export const beltText = (id: BeltId, f: 'name' | 'desc' | 'known') => t(`belt.${id}.${f}`);
+export const galaxyName = (id: GalaxyId) => t(`galaxy.${id}.name`);
+export const galaxyDesc = (id: GalaxyId) => t(`galaxy.${id}.desc`);
+export const beltText =(id: BeltId, f: 'name' | 'desc' | 'known') => t(`belt.${id}.${f}`);
