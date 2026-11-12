@@ -178,6 +178,43 @@ export function createBodyList(
   };
 }
 
+/**
+ * Tam ekran düğmesi. iPad Safari eski "webkit" adlarını kullanır; iPhone hiç izin vermez
+ * (orada düğme gösterilmez, ana ekrana ekleme kullanılır). Ana ekrandan tam ekran
+ * açılmışsa da gerek yok.
+ */
+function createFullscreenButton(): HTMLButtonElement | null {
+  type WkDoc = Document & { webkitFullscreenElement?: Element; webkitExitFullscreen?: () => void; webkitFullscreenEnabled?: boolean };
+  type WkEl = HTMLElement & { webkitRequestFullscreen?: () => void };
+  const doc = document as WkDoc;
+  const root = document.documentElement as WkEl;
+  const enabled = doc.fullscreenEnabled || doc.webkitFullscreenEnabled;
+  if (!enabled || matchMedia('(display-mode: fullscreen)').matches) return null;
+
+  const current = () => doc.fullscreenElement ?? doc.webkitFullscreenElement ?? null;
+  const b = el('button', 'fullscreen', '⛶');
+  const sync = () => {
+    const on = !!current();
+    b.classList.toggle('active', on);
+    b.title = t(on ? 'ui.exitFullscreen' : 'ui.fullscreen');
+    b.setAttribute('aria-label', b.title);
+  };
+  b.onclick = () => {
+    if (current()) {
+      if (doc.exitFullscreen) doc.exitFullscreen().catch(() => {});
+      else doc.webkitExitFullscreen?.();
+    } else if (root.requestFullscreen) {
+      root.requestFullscreen({ navigationUI: 'hide' }).catch(() => {});
+    } else {
+      root.webkitRequestFullscreen?.();
+    }
+  };
+  document.addEventListener('fullscreenchange', sync);
+  document.addEventListener('webkitfullscreenchange', sync);
+  sync();
+  return b;
+}
+
 export function createUI(h: UIHandlers, initialSpeed: number) {
   const loc = locale();
   const dateFmt = new Intl.DateTimeFormat(loc, { dateStyle: 'long', timeStyle: 'short' });
@@ -201,6 +238,8 @@ export function createUI(h: UIHandlers, initialSpeed: number) {
   const labels = el('button', 'active', t('ui.labels'));
   labels.onclick = () => h.onLabels(labels.classList.toggle('active'));
   bar.append(date, speeds, today, labels);
+  const fs = createFullscreenButton();
+  if (fs) bar.append(fs);
 
   // --- Bilgi paneli ---
   const panel = el('aside', 'panel hidden');

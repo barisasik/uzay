@@ -14,6 +14,8 @@ const tr = {
   'ui.today': 'Bugüne dön',
   'ui.labels': 'Etiketler',
   'ui.close': 'Kapat',
+  'ui.fullscreen': 'Tam ekran',
+  'ui.exitFullscreen': 'Tam ekrandan çık',
   'list.title': 'Gök cisimleri',
   'list.order': 'Sırayla',
   'list.near': 'Yakınlık',

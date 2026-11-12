@@ -9,6 +9,14 @@
 }
 
 html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
+
+/* Çentik, yuvarlak köşe ve iOS durum çubuğu için güvenli kenar boşlukları */
+:root {
+  --st: max(12px, env(safe-area-inset-top));
+  --sr: max(12px, env(safe-area-inset-right));
+  --sb: max(0px, env(safe-area-inset-bottom));
+  --sl: max(12px, env(safe-area-inset-left));
+}
 canvas { display: block; touch-action: none; }
 
 button {
@@ -27,9 +35,9 @@ button.active { background: var(--accent); border-color: var(--accent); color: #
 /* Üst çubuğun yeri: sol listenin sağında kalan alanda ortalı. */
 .hud {
   position: fixed;
-  top: 12px;
-  left: 234px;
-  right: 12px;
+  top: var(--st);
+  left: calc(var(--sl) + 222px);
+  right: var(--sr);
   display: flex;
   justify-content: center;
   pointer-events: none;
@@ -53,8 +61,8 @@ button.active { background: var(--accent); border-color: var(--accent); color: #
 
 .panel {
   position: fixed;
-  top: 80px;
-  right: 16px;
+  top: calc(var(--st) + 68px);
+  right: calc(var(--sr) + 4px);
   width: 300px;
   max-width: calc(100vw - 32px);
   max-height: calc(100dvh - 100px);
@@ -77,11 +85,11 @@ button.active { background: var(--accent); border-color: var(--accent); color: #
 
 .bodylist {
   position: fixed;
-  top: 12px;
-  left: 12px;
+  top: var(--st);
+  left: var(--sl);
   width: 210px;
   max-height: calc(100vh - 60px);
-  max-height: calc(100dvh - 60px);
+  max-height: calc(100dvh - var(--st) - var(--sb) - 48px);
   box-sizing: border-box;
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -142,6 +150,7 @@ button.active { background: var(--accent); border-color: var(--accent); color: #
 .hud.galaxy .date,
 .hud.galaxy .group,
 .hud.galaxy .today { display: none; }
+.topbar .fullscreen { font-size: 15px; line-height: 1; padding-left: 9px; padding-right: 9px; }
 .label.galaxy-label { font-size: 11px; color: #c8d0e6; background: rgba(10, 14, 24, 0.4); }
 .label.galaxy-label.major { font-size: 13px; color: #fff; }
 .label.sun-here { font-size: 11px; color: #ffe08a; background: rgba(10, 14, 24, 0.55); }
@@ -177,8 +186,8 @@ button.active { background: var(--accent); border-color: var(--accent); color: #
 
 .credits {
   position: fixed;
-  left: 12px;
-  bottom: 10px;
+  left: var(--sl);
+  bottom: calc(var(--sb) + 10px);
   font-size: 11px;
   color: var(--muted);
   opacity: 0.7;
@@ -234,18 +243,18 @@ button.active { background: var(--accent); border-color: var(--accent); color: #
 
 /* ---------- Tablet ve dar ekran: kontroller alta ---------- */
 @media (max-width: 1180px) {
-  .hud { top: auto; bottom: 26px; left: 12px; right: 12px; }
+  .hud { top: auto; bottom: calc(var(--sb) + 26px); left: var(--sl); right: var(--sr); }
   .topbar { flex-wrap: wrap; row-gap: 6px; max-width: 100%; }
   .topbar .date { min-width: 0; }
-  .credits { left: 50%; transform: translateX(-50%); bottom: 6px; font-size: 10px; white-space: nowrap; }
-  .bodylist { max-height: calc(100dvh - 150px); }
-  .panel { top: 12px; right: 12px; max-height: calc(100dvh - 160px); }
+  .credits { left: 50%; transform: translateX(-50%); bottom: calc(var(--sb) + 6px); font-size: 10px; white-space: nowrap; }
+  .bodylist { max-height: calc(100dvh - var(--st) - var(--sb) - 138px); }
+  .panel { top: var(--st); right: var(--sr); max-height: calc(100dvh - var(--st) - var(--sb) - 148px); }
 }
 @media (max-width: 900px) {
-  .topbar { gap: 6px; padding: 8px 10px; }
-  .topbar button { padding-left: 8px; padding-right: 8px; font-size: 12.5px; }
+  .topbar { gap: 5px; padding: 8px 10px; }
+  .topbar button { padding-left: 7px; padding-right: 7px; font-size: 12.5px; }
   .topbar .date { font-size: 14px; }
 }
 @media (max-width: 720px) {
-  .panel { width: auto; left: 12px; top: auto; bottom: 130px; max-height: 45dvh; }
+  .panel { width: auto; left: var(--sl); top: auto; bottom: calc(var(--sb) + 130px); max-height: 45dvh; }
 }
