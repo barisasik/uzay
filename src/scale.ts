@@ -1,40 +1,32 @@
 import type * as THREE from 'three';
 import type { Vec3 } from './astro/orbit';
 
-// Gerçek değer → sahne birimi dönüşümünün TEK yeri.
-// 'schematic': uzaklıklar sıkıştırılmış, gezegenler büyütülmüş.
-// Faz 5'te 'real' modu buraya eklenecek.
-export type ScaleMode = 'schematic';
-let mode: ScaleMode = 'schematic';
+// Gerçek ölçek: 1 sahne birimi = 1000 km.
+// Güneş Sistemi'nden Andromeda'ya ~20 büyüklük mertebesi; konumlar CPU'da 64 bitle tutulur,
+// three.js her nesnenin kameraya göre konumunu (modelView) yine 64 bitle hesaplar, GPU'ya
+// yalnızca bu göreli değer gider. Derinlik için logaritmik derinlik tamponu kullanılır.
+export const UNIT_KM = 1000;
+export const AU_KM = 149_597_870.7;
+export const LY_KM = 9_460_730_472_580.8;
+
+/** Sahne birimi cinsinden sabitler. */
+export const AU = AU_KM / UNIT_KM;
+export const LY = LY_KM / UNIT_KM;
+export const KLY = LY * 1000;
 
 export const scale = {
-  get mode() { return mode; },
-  set mode(m: ScaleMode) { mode = m; },
   distance(au: number): number {
-    switch (mode) {
-      case 'schematic': return 6 + 14 * Math.sqrt(au);
-    }
+    return au * AU;
   },
   radius(km: number): number {
-    switch (mode) {
-      case 'schematic': return 0.4 * Math.pow(km / 1000, 0.45);
-    }
+    return km / UNIT_KM;
   },
-  /** Uydu yarıçapı: gezegenlerden ayrışsın diye şematikte biraz küçültülür. */
   satelliteRadius(km: number): number {
-    switch (mode) {
-      case 'schematic': return 0.6 * this.radius(km);
-    }
+    return km / UNIT_KM;
   },
-  /**
-   * Uydunun ana gezegen merkezine uzaklığı (sahne birimi).
-   * minRatio: gezegen yarıçapı cinsinden en yakın mesafe (halkalı gezegenlerde halkanın dışı).
-   */
-  satelliteDistance(km: number, parentRadiusKm: number, minRatio = 1.5): number {
-    switch (mode) {
-      case 'schematic':
-        return this.radius(parentRadiusKm) * (Math.max(1.5, minRatio) + 0.6 * Math.log(km / parentRadiusKm));
-    }
+  /** Uydunun ana gezegen merkezine uzaklığı (sahne birimi). */
+  satelliteDistance(km: number): number {
+    return km / UNIT_KM;
   },
 };
 
@@ -43,9 +35,7 @@ export function eclipticAxes(p: Vec3, out: THREE.Vector3): THREE.Vector3 {
   return out.set(p.x, p.z, -p.y);
 }
 
-/** Ekliptik koordinat (AU, z kuzey) → sahne (y yukarı). Uzaklık radyal olarak ölçeklenir. */
+/** Ekliptik koordinat (AU, z kuzey) → sahne (y yukarı). */
 export function eclipticToScene(p: Vec3, out: THREE.Vector3): THREE.Vector3 {
-  const r = Math.hypot(p.x, p.y, p.z);
-  const s = r > 0 ? scale.distance(r) / r : 0;
-  return out.set(p.x * s, p.z * s, -p.y * s);
+  return out.set(p.x * AU, p.z * AU, -p.y * AU);
 }

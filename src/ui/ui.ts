@@ -9,6 +9,8 @@ export type Scope = 'solar' | 'galaxy';
 const hex = (c: number) => `#${c.toString(16).padStart(6, '0')}`;
 
 const AU_MILLION_KM = 149.5978707;
+const AU_KM = 149_597_870.7;
+const LY_KM = 9_460_730_472_580.8;
 
 export interface UIHandlers {
   onSpeed(value: number): void;
@@ -22,6 +24,58 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, text?: 
   if (cls) e.className = cls;
   if (text) e.textContent = text;
   return e;
+}
+
+/**
+ * Sağ alt: ölçek çubuğu. Hedefin uzaklığında bir pikselin kaç km ettiğine göre
+ * 1–2–5 katlarından yuvarlak bir uzunluk seçer: km → AU → ışık yılı.
+ */
+export function createScaleBar() {
+  const loc = locale();
+  const n = (v: number) => new Intl.NumberFormat(loc, { maximumFractionDigits: 1 }).format(v);
+  const root = el('div', 'scalebar');
+  const bar = el('div', 'bar');
+  const text = el('span', 'text');
+  root.append(text, bar);
+  // Üst çubuğun kabına eklenir: dar ekranda çubuk alta inince ölçek onun hemen üstünde durur.
+  (document.querySelector('.hud') ?? document.body).append(root);
+
+  const MAX_PX = 110;
+  const nice = (x: number) => {
+    const p = Math.pow(10, Math.floor(Math.log10(x)));
+    const m = x / p;
+    return (m >= 5 ? 5 : m >= 2 ? 2 : 1) * p;
+  };
+  const big = (v: number, unit: string) =>
+    v >= 1e9 ? `${n(v / 1e9)} ${t('unit.billion')} ${unit}`
+      : v >= 1e6 ? `${n(v / 1e6)} ${t('unit.million')} ${unit}`
+        : v >= 1e3 && unit !== t('unit.km') ? `${n(v / 1e3)} ${t('unit.thousand')} ${unit}`
+          : `${n(v)} ${unit}`;
+  let lastText = '';
+  let lastPx = -1;
+  return {
+    /** unitsPerPx: hedefin uzaklığında bir ekran pikseli kaç sahne birimi (1 birim = 1000 km). */
+    update(unitsPerPx: number) {
+      const kmPerPx = unitsPerPx * 1000;
+      const maxKm = kmPerPx * MAX_PX;
+      let km: number, label: string;
+      if (maxKm < 0.2 * AU_KM) {
+        km = nice(maxKm);
+        label = big(km, t('unit.km'));
+      } else if (maxKm < 0.5 * LY_KM) {
+        const au = nice(maxKm / AU_KM);
+        km = au * AU_KM;
+        label = big(au, t('unit.au'));
+      } else {
+        const ly = nice(maxKm / LY_KM);
+        km = ly * LY_KM;
+        label = big(ly, t('unit.ly'));
+      }
+      const px = Math.round(km / kmPerPx);
+      if (px !== lastPx) bar.style.width = `${(lastPx = px)}px`;
+      if (label !== lastText) text.textContent = lastText = label;
+    },
+  };
 }
 
 /** Dokular yüklenene kadar ekranı kaplar. */
@@ -300,9 +354,6 @@ export function createUI(h: UIHandlers, initialSpeed: number) {
       if (d.showDiameter) row(t('info.diameter'), `~${ly(d.diameterKly)}`);
       if (g.parent) row(t('info.parent'), galaxyName(g.parent.id));
       panel.classList.remove('hidden');
-    },
-    setScope(s: Scope) {
-      hud.classList.toggle('galaxy', s === 'galaxy');
     },
     showBelt(b: BeltView) {
       title.textContent = beltText(b.id, 'name');

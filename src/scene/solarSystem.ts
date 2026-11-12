@@ -4,7 +4,7 @@ import { MOON, PLANETS, SATELLITES, SATURN_RINGS, SUN, URANUS_RINGS, type BodyId
 import {
   DAY_MS, J2000_MS, elementsAt, orbitPoints, positionAt, satelliteDirection, satelliteOrbitPoints, type Vec3,
 } from '../astro/orbit';
-import { eclipticAxes, eclipticToScene, scale } from '../scale';
+import { AU, eclipticAxes, eclipticToScene, scale } from '../scale';
 import { bodyName } from '../i18n';
 import { applyMap, type LoadTexture } from './textures';
 
@@ -36,6 +36,8 @@ export interface BodyView {
   /** Uydular için ana gezegen */
   parent: BodyView | null;
   label: CSS2DObject;
+  /** Cisim ekranda bir pikselden küçük kalınca görünen renkli nokta */
+  marker: THREE.Points;
 }
 
 /** Güneş'ten dışa doğru sıra; her gezegenin ardından uyduları (yakından uzağa). */
@@ -50,6 +52,18 @@ export const BODY_ORDER: BodyId[] = [
 ];
 
 const AU_KM = 149_597_870.7;
+const markerGeo = new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute([0, 0, 0], 3));
+/** Yuvarlak nokta dokusu (PointsMaterial varsayılan olarak kare çizer). */
+const dotTexture = (() => {
+  const c = document.createElement('canvas');
+  c.width = c.height = 32;
+  const g = c.getContext('2d')!;
+  g.fillStyle = '#fff';
+  g.beginPath();
+  g.arc(16, 16, 14, 0, Math.PI * 2);
+  g.fill();
+  return new THREE.CanvasTexture(c);
+})();
 
 const TAU = Math.PI * 2;
 const D2R = Math.PI / 180;
@@ -86,10 +100,19 @@ export function createSolarSystem(scene: THREE.Scene, loadTexture: LoadTexture, 
     const axis = createAxis(2.6); // halkaların dışına taşsın
     mesh.add(axis);
 
+    const marker = new THREE.Points(
+      markerGeo,
+      new THREE.PointsMaterial({
+        color: phys.color, size: kind === 'star' ? 8 : kind === 'planet' ? 6 : 4,
+        sizeAttenuation: false, transparent: true, depthWrite: false, alphaMap: dotTexture, alphaTest: 0.3,
+      }),
+    );
+    object.add(marker);
+
     const view: BodyView = {
       id, kind, object, mesh, radius, radiusKm: phys.radiusKm, distanceAU: 0,
       rotationDays: phys.rotationDays, axis, ecl: { x: 0, y: 0, z: 0 }, color: phys.color,
-      parent, label: null!, ...extra,
+      parent, label: null!, marker, ...extra,
     };
 
     const div = document.createElement('div');
@@ -112,10 +135,10 @@ export function createSolarSystem(scene: THREE.Scene, loadTexture: LoadTexture, 
 
   // --- Gezegenler ---
   const nowDays = (Date.now() - J2000_MS) / DAY_MS;
-  const orbitMat = new THREE.LineBasicMaterial({ color: 0x4466aa, transparent: true, opacity: 0.4 });
+  const orbitMat = new THREE.LineBasicMaterial({ color: 0x4466aa, transparent: true, opacity: 0.4, depthWrite: false });
   const planetViews = PLANETS.map((p) => {
     const v = makeBody(p.id, 'planet', p, { periodDays: p.periodDays, parentDistanceKm: null });
-    const pts = orbitPoints(elementsAt(p, nowDays / 36525), 512).map((q) => eclipticToScene(q, new THREE.Vector3()));
+    const pts = orbitPoints(elementsAt(p, nowDays / 36525), 4096).map((q) => eclipticToScene(q, new THREE.Vector3()));
     scene.add(new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(pts), orbitMat));
     return { data: p, view: v };
   });
@@ -143,7 +166,7 @@ export function createSolarSystem(scene: THREE.Scene, loadTexture: LoadTexture, 
   // --- Ay ---
   const satOrbitMat = new THREE.LineBasicMaterial({ color: 0x8899bb, transparent: true, opacity: 0.3 });
   const moon = makeBody('moon', 'moon', MOON, { periodDays: MOON.periodDays, parentDistanceKm: MOON.distanceKm }, earth);
-  const moonDist = scale.satelliteDistance(MOON.distanceKm, earth.radiusKm);
+  const moonDist = scale.satelliteDistance(MOON.distanceKm);
   const moonOrbit = new THREE.LineLoop(
     new THREE.BufferGeometry().setFromPoints(
       satelliteOrbitPoints(MOON, nowDays, 128).map((q) => eclipticAxes(q, new THREE.Vector3()).multiplyScalar(moonDist)),
@@ -153,14 +176,10 @@ export function createSolarSystem(scene: THREE.Scene, loadTexture: LoadTexture, 
   earth.object.add(moonOrbit);
 
   // --- Diğer uydular: gezegenin ekvator düzleminde dairesel yörünge ---
-  const ringOuterRatio: Partial<Record<BodyId, number>> = {
-    saturn: SATURN_RINGS.outerKm / saturn.radiusKm,
-    uranus: (URANUS_RINGS[URANUS_RINGS.length - 1].radiusKm + 400) / uranus.radiusKm,
-  };
   const sats = SATELLITES.map((s) => {
     const parent = views.find((v) => v.id === s.parent)!;
     const tilt = PLANETS.find((p) => p.id === s.parent)!.tiltDeg * D2R;
-    const dist = scale.satelliteDistance(s.aKm, parent.radiusKm, (ringOuterRatio[s.parent] ?? 0) + 0.3);
+    const dist = scale.satelliteDistance(s.aKm);
     const view = makeBody(
       s.id, 'moon',
       { radiusKm: s.radiusKm, tiltDeg: tilt / D2R, rotationDays: s.periodDays, texture: s.texture, color: s.color },
@@ -168,8 +187,8 @@ export function createSolarSystem(scene: THREE.Scene, loadTexture: LoadTexture, 
       parent, true,
     );
     const pts: THREE.Vector3[] = [];
-    for (let i = 0; i < 128; i++) {
-      const a = (i / 128) * TAU;
+    for (let i = 0; i < 256; i++) {
+      const a = (i / 256) * TAU;
       pts.push(new THREE.Vector3(Math.cos(a) * dist, 0, -Math.sin(a) * dist));
     }
     const orbit = new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(pts), satOrbitMat);
@@ -184,6 +203,12 @@ export function createSolarSystem(scene: THREE.Scene, loadTexture: LoadTexture, 
     v.mesh.rotation.y = ((days / v.rotationDays) % 1) * TAU;
   };
   const tmp = new THREE.Vector3();
+  const wp = new THREE.Vector3();
+
+  // Uydu etiketleri, kamera gezegenin en dış uydusunun birkaç katı içindeyken görünür.
+  const satReach = new Map<BodyView, number>();
+  satReach.set(earth, moonDist);
+  for (const o of sats) satReach.set(o.parent, Math.max(satReach.get(o.parent) ?? 0, o.dist));
 
   return {
     views,
@@ -227,12 +252,30 @@ export function createSolarSystem(scene: THREE.Scene, loadTexture: LoadTexture, 
         o.view.mesh.rotation.y = th + Math.PI; // kilitli dönüş
       }
     },
-    /** Uydu etiketlerini yalnızca gezegenine yakınken göster (seçili olan hep görünür). */
-    updateLabels(camera: THREE.Camera, selected: BodyView | null) {
+    /**
+     * Etiket ve işaret noktalarının görünürlüğü.
+     * sunDist: kameranın Güneş'e uzaklığı (sahne birimi); focal: piksel cinsinden odak uzaklığı.
+     * Gezegenler Güneş'ten ~3000 AU ötede tek noktada birleşir, o zaman gizlenir.
+     */
+    updateLabels(camera: THREE.Camera, selected: BodyView | null, sunDist: number, focal: number) {
+      const inSystem = sunDist < 3000 * AU;
+      let nearest = Infinity;
       for (const v of views) {
-        if (!v.parent) continue;
-        v.label.visible = v === selected || camera.position.distanceTo(v.parent.object.position) < v.parent.radius * 40;
+        let show: boolean;
+        if (v.kind === 'star') show = sunDist < 20000 * AU;
+        else if (!v.parent) show = inSystem;
+        else show = inSystem && camera.position.distanceTo(v.parent.object.position) < (satReach.get(v.parent) ?? 0) * 8;
+        if (v === selected) show = true;
+        v.label.visible = show;
+        v.object.getWorldPosition(wp);
+        const d = camera.position.distanceTo(wp);
+        if (v.kind !== 'star') nearest = Math.min(nearest, d);
+        const px = (v.radius / Math.max(1e-9, d)) * focal;
+        v.marker.visible = show && px < 2.5;
       }
+      // Yakın plandaki gezegen yörüngesi, uzun çizgi parçaları ve yörünge sapmaları
+      // yüzünden gezegenin yanından geçebilir; yakında soluklaşır.
+      orbitMat.opacity = 0.4 * THREE.MathUtils.smoothstep(nearest, 1000, 10000);
     },
   };
 }

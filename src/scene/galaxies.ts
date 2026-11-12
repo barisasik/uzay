@@ -2,21 +2,51 @@ import * as THREE from 'three';
 import { CSS2DObject } from 'three/examples/jsm/renderers/CSS2DRenderer.js';
 import { GALAXIES, SUN_GC_KLY, type GalaxyData, type GalaxyId } from '../data/galaxies';
 import { gauss, mulberry32 } from '../util/random';
+import { AU, KLY } from '../scale';
 
-// Galaksi görünümü: 1 sahne birimi = 1 kly (bin ışık yılı).
-// Samanyolu merkezi orijinde, galaktik düzlem sahnenin xz düzlemi, galaktik kuzey +y.
+// Galaksiler bir kök grubun içinde: yerel birim = 1 kly (bin ışık yılı),
+// Samanyolu merkezi yerel orijinde, galaktik düzlem yerel xz düzlemi, galaktik kuzey +y.
+// Kök grup ölçeklenip döndürülerek Güneş Sistemi'nin ekliptik sahnesine oturtulur:
+// Güneş dünya orijininde kalır.
 
 export interface GalaxyView {
   id: GalaxyId;
   data: GalaxyData;
-  /** Konumu taşıyan grup (dönmez; etiket buna bağlı). */
+  /** Konumu taşıyan grup (dönmez; etiket buna bağlı). Kök grubun çocuğu: dünya konumu için getWorldPosition. */
   object: THREE.Group;
+  /** Dünya (sahne) birimi cinsinden yarıçap */
   radius: number;
   parent: GalaxyView | null;
   label: CSS2DObject;
 }
 
 const D2R = Math.PI / 180;
+
+/**
+ * Galaktik yerel sahne → ekliptik sahne dönüşümü (döndürme).
+ * Galaktik → ekvatoral: Hipparcos matrisinin tersi; ekvatoral → ekliptik: eğiklik ε.
+ */
+function galacticFrame(): THREE.Quaternion {
+  const A = [
+    [-0.0548755604, -0.8734370902, -0.4838350155],
+    [0.4941094279, -0.44482963, 0.7469822445],
+    [-0.867666149, -0.1980763734, 0.4559837762],
+  ];
+  const eps = 23.4392911 * D2R;
+  const map = (gx: number, gy: number, gz: number) => {
+    const G = [gx, -gz, gy]; // yerel sahne (X, Z, −Y) → galaktik (X, Y, Z)
+    const eq = [0, 1, 2].map((i) => A[0][i] * G[0] + A[1][i] * G[1] + A[2][i] * G[2]);
+    const ex = eq[0];
+    const ey = Math.cos(eps) * eq[1] + Math.sin(eps) * eq[2];
+    const ez = -Math.sin(eps) * eq[1] + Math.cos(eps) * eq[2];
+    return new THREE.Vector3(ex, ez, -ey); // ekliptik → sahne
+  };
+  const m = new THREE.Matrix4().makeBasis(map(1, 0, 0), map(0, 1, 0), map(0, 0, 1));
+  return new THREE.Quaternion().setFromRotationMatrix(m);
+}
+
+/** Gök kuzey kutbunun (ekvatoral kuzey) yerel galaksi sahnesindeki yönü: l = 122,93°, b = 27,13°. */
+const CELESTIAL_NORTH = new THREE.Vector3(-0.4838350155, 0.4559837762, -0.7469822445);
 
 /** Galaktik (l, b, d) → Samanyolu merkezli sahne koordinatı. */
 function galacticToScene(lDeg: number, bDeg: number, d: number, out = new THREE.Vector3()) {
@@ -114,16 +144,20 @@ const vertexShader = /* glsl */ `
   #include <common>
   #include <logdepthbuf_pars_vertex>
   uniform float uScale;
+  uniform float uUnit;
   attribute float size;
   varying vec3 vColor;
   varying float vAlpha;
   void main() {
     vec4 mv = modelViewMatrix * vec4(position, 1.0);
     gl_Position = projectionMatrix * mv;
-    float px = size * uScale / max(0.001, -mv.z);
+    float s = size * uUnit;           // nokta boyu, dünya biriminde
+    float px = s * uScale / max(1e-6, -mv.z);
     gl_PointSize = clamp(px, 1.0, 24.0);
     // 1 pikselden küçük kalan noktalar sönükleşir; toplam parlaklık korunur.
-    vAlpha = min(1.0, px * px);
+    // Ekranda büyüyen (yakındaki) noktalar da söner: galaksinin içindeyken (Güneş'ten bakınca)
+    // gökyüzünde dev lekeler yerine uzaktaki noktaların oluşturduğu Samanyolu kuşağı kalır.
+    vAlpha = min(1.0, px * px) * (1.0 - smoothstep(9.0, 22.0, px));
     vColor = color;
     #include <logdepthbuf_vertex>
   }
@@ -146,7 +180,7 @@ function makeMaterial(scaleUniform: { value: number }, opacity: number) {
   return new THREE.ShaderMaterial({
     vertexShader,
     fragmentShader,
-    uniforms: { uScale: scaleUniform, uOpacity: { value: opacity } },
+    uniforms: { uScale: scaleUniform, uUnit: { value: KLY }, uOpacity: { value: opacity } },
     vertexColors: true,
     transparent: true,
     depthWrite: false,
@@ -157,7 +191,7 @@ function makeMaterial(scaleUniform: { value: number }, opacity: number) {
 /** Disk normalini, Güneş'ten bakınca verilen eğiklik ve konum açısında görünecek şekilde seçer (yaklaşık). */
 function diskNormal(pos: THREE.Vector3, sun: THREE.Vector3, inclDeg: number, paDeg: number) {
   const los = pos.clone().sub(sun).normalize();
-  const north = new THREE.Vector3(0, 1, 0);
+  const north = CELESTIAL_NORTH.clone();
   const en = north.clone().sub(los.clone().multiplyScalar(north.dot(los))).normalize();
   const ee = new THREE.Vector3().crossVectors(los, en);
   const pa = paDeg * D2R, i = inclDeg * D2R;
@@ -176,6 +210,12 @@ export function createGalaxies(
   const scaleUniform = { value: 1 };
   const sun = galacticToScene(0, 0, 0);
   const views: GalaxyView[] = [];
+
+  const root = new THREE.Group();
+  root.quaternion.copy(galacticFrame());
+  root.scale.setScalar(KLY);
+  root.position.copy(sun).applyQuaternion(root.quaternion).multiplyScalar(-KLY); // Güneş → dünya orijini
+  scene.add(root);
 
   for (const d of GALAXIES) {
     const R = d.diameterKly / 2;
@@ -217,7 +257,7 @@ export function createGalaxies(
       disk.rotation.y = 27 * D2R; // çubuk, Güneş–merkez doğrusuna ~27° eğik
     }
     object.add(disk);
-    scene.add(object);
+    root.add(object);
 
     const div = document.createElement('div');
     div.className = d.major ? 'label galaxy-label major' : 'label galaxy-label';
@@ -227,7 +267,7 @@ export function createGalaxies(
     label.position.set(0, Math.max(R * 0.45, 1.5), 0);
     object.add(label);
 
-    const view: GalaxyView = { id: d.id, data: d, object, radius: Math.max(R, 1.5), parent: null, label };
+    const view: GalaxyView = { id: d.id, data: d, object, radius: Math.max(R, 1.5) * KLY, parent: null, label };
     div.addEventListener('click', () => onPick(view));
     views.push(view);
   }
@@ -239,7 +279,7 @@ export function createGalaxies(
     new THREE.PointsMaterial({ color: 0xffe08a, size: 6, sizeAttenuation: false, depthTest: false, transparent: true }),
   );
   sunMark.renderOrder = 10;
-  scene.add(sunMark);
+  root.add(sunMark);
   const sunDiv = document.createElement('div');
   sunDiv.className = 'label sun-here';
   sunDiv.textContent = sunText;
@@ -247,23 +287,33 @@ export function createGalaxies(
   const sunLabel = new CSS2DObject(sunDiv);
   sunLabel.center.set(0.5, -0.3);
   sunLabel.position.copy(sun);
-  scene.add(sunLabel);
+  root.add(sunLabel);
 
   const wp = new THREE.Vector3();
   return {
     views,
+    /** Galaksi listesinde olmayan etiketler (arkada kalanları gizlemek için). */
+    extraLabels: [sunLabel],
     /** Nokta boyutu ölçeği: ekran yüksekliğine ve görüş açısına bağlı. */
     setViewport(heightPx: number, fovDeg: number) {
       scaleUniform.value = (heightPx * Math.min(devicePixelRatio, 2)) / (2 * Math.tan((fovDeg * D2R) / 2));
     },
-    updateLabels(camera: THREE.Camera, selected: GalaxyView | null) {
+    /** sunDist: kameranın Güneş'e uzaklığı (sahne birimi). */
+    updateLabels(camera: THREE.Camera, selected: GalaxyView | null, sunDist: number) {
+      // Gezegenler arasındayken galaksi etiketleri gökyüzünü kalabalıklaştırmasın.
+      const outside = sunDist > 1000 * AU;
       for (const v of views) {
-        if (v.data.major || v === selected) { v.label.visible = true; continue; }
+        if (v === selected) { v.label.visible = true; continue; }
+        if (!outside) { v.label.visible = false; continue; }
+        if (v.data.major) { v.label.visible = true; continue; }
         // Küçük galaksilerin etiketi yalnızca yakındayken (kalabalık olmasın).
         v.object.getWorldPosition(wp);
-        v.label.visible = camera.position.distanceTo(wp) < 700;
+        v.label.visible = camera.position.distanceTo(wp) < 700 * KLY;
       }
-      sunLabel.visible = camera.position.distanceTo(sun) < 900;
+      // "Buradasınız": gezegenler tek noktada birleştikten sonra.
+      const here = sunDist > 20000 * AU && sunDist < 900 * KLY;
+      sunLabel.visible = here;
+      sunMark.visible = here;
     },
   };
 }

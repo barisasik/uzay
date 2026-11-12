@@ -41,7 +41,11 @@ const tr = {
   'belt.kuiper.name': 'Kuiper Kuşağı',
   'belt.kuiper.known': '3 binden fazla',
   'belt.kuiper.desc':
-    "Neptün'ün ötesinde, buzlu cisimlerden oluşan geniş halka. Plüton, Haumea ve Makemake gibi cüce gezegenler buradadır. Kısa dönemli kuyruklu yıldızların çoğu buradan gelir. Daha ötesindeki dev Oort Bulutu ise gerçek ölçek modunda (Faz 5) eklenecek.",
+    "Neptün'ün ötesinde, buzlu cisimlerden oluşan geniş halka. Plüton, Haumea ve Makemake gibi cüce gezegenler buradadır. Kısa dönemli kuyruklu yıldızların çoğu buradan gelir. Çok daha ötede, Güneş Sistemi'ni küre gibi saran Oort Bulutu başlar.",
+  'belt.oort.name': 'Oort Bulutu',
+  'belt.oort.known': 'Doğrudan gözlenmedi',
+  'belt.oort.desc':
+    "Güneş Sistemi'ni dev bir kabuk gibi saran, trilyonlarca buzlu cisimden oluştuğu düşünülen bulut. Dış sınırı Güneş'ten yaklaşık 1,5 ışık yılı uzakta, yani en yakın yıldızlara olan yolun üçte biri kadar. Hiçbir cismi doğrudan görülmedi; varlığı, buradan gelen uzun dönemli kuyruklu yıldızların yörüngelerinden çıkarılıyor. İçteki kısmı basık bir simit, dıştaki kısmı küreseldir.",
 
   'scope.solar': 'Güneş Sistemi',
   'scope.galaxies': 'Galaksiler',
@@ -51,6 +55,10 @@ const tr = {
   'info.sunToCenter': "Güneş'in merkeze uzaklığı",
   'unit.thousandLy': 'bin ışık yılı',
   'unit.millionLy': 'milyon ışık yılı',
+  'unit.ly': 'ışık yılı',
+  'unit.thousand': 'bin',
+  'unit.million': 'milyon',
+  'unit.billion': 'milyar',
   'gtype.barred': 'Çubuklu sarmal galaksi',
   'gtype.spiral': 'Sarmal galaksi',
   'gtype.irregular': 'Düzensiz galaksi',

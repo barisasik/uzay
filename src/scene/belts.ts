@@ -1,10 +1,10 @@
 import * as THREE from 'three';
 import { CSS2DObject } from 'three/examples/jsm/renderers/CSS2DRenderer.js';
 import { DAY_MS, J2000_MS, type Vec3 } from '../astro/orbit';
-import { eclipticToScene, scale } from '../scale';
+import { AU, eclipticToScene, scale } from '../scale';
 import { gauss, mulberry32 } from '../util/random';
 
-export type BeltId = 'asteroid' | 'trojans' | 'kuiper';
+export type BeltId = 'asteroid' | 'trojans' | 'kuiper' | 'oort';
 
 export interface BeltView {
   id: BeltId;
@@ -22,8 +22,7 @@ export interface BeltView {
 const D2R = Math.PI / 180;
 
 // Parçacıklar dairesel, eğik yörüngelerde. Konum GPU'da hesaplanır:
-// açı = faz + 2π·yıl / a^1.5 (Kepler'in 3. yasası). Uzaklık ölçeği scale.ts'teki
-// şematik formülle aynı olmalı: 6 + 14·√a.
+// açı = faz + 2π·yıl / a^1.5 (Kepler'in 3. yasası). uAU: 1 AU'nun sahne birimi karşılığı.
 const vertexShader = /* glsl */ `
   #include <common>
   #include <logdepthbuf_pars_vertex>
@@ -31,6 +30,7 @@ const vertexShader = /* glsl */ `
   uniform float uLockLon;
   uniform float uLocked;
   uniform float uSize;
+  uniform float uAU;
   attribute vec4 orbit;   // a (AU), faz, eğim, düğüm
   attribute float bright;
   varying float vBright;
@@ -41,7 +41,7 @@ const vertexShader = /* glsl */ `
     float cO = cos(orbit.w), sO = sin(orbit.w);
     float cu = cos(u), su = sin(u);
     vec3 d = vec3(cO * cu - sO * su * ci, sO * cu + cO * su * ci, su * si); // ekliptik
-    vec3 p = vec3(d.x, d.z, -d.y) * (6.0 + 14.0 * sqrt(a));
+    vec3 p = vec3(d.x, d.z, -d.y) * (a * uAU);
     vec4 mv = modelViewMatrix * vec4(p, 1.0);
     gl_Position = projectionMatrix * mv;
     gl_PointSize = uSize * bright;
@@ -54,12 +54,13 @@ const fragmentShader = /* glsl */ `
   #include <logdepthbuf_pars_fragment>
   uniform vec3 uColor;
   uniform float uOpacity;
+  uniform float uFade;
   varying float vBright;
   void main() {
     vec2 c = gl_PointCoord - 0.5;
     float r2 = dot(c, c);
     if (r2 > 0.25) discard;
-    float a = (1.0 - r2 * 4.0) * uOpacity * min(1.0, vBright);
+    float a = (1.0 - r2 * 4.0) * uOpacity * uFade * min(1.0, vBright);
     gl_FragColor = vec4(uColor, a);
     #include <logdepthbuf_fragment>
   }
@@ -87,6 +88,8 @@ function makePoints(list: Particle[], color: number, size: number, opacity: numb
       uLockLon: { value: 0 },
       uLocked: { value: locked ? 1 : 0 },
       uSize: { value: size * Math.min(devicePixelRatio, 2) },
+      uAU: { value: AU },
+      uFade: { value: 1 },
       uColor: { value: new THREE.Color(color) },
       uOpacity: { value: opacity },
     },
@@ -156,6 +159,32 @@ function kuiperBelt(rnd: () => number, n: number): Particle[] {
   return out;
 }
 
+/**
+ * Oort Bulutu: iç kısım (Hills bulutu, 2–20 bin AU) ekliptiğe yakın basık bir simit,
+ * dış kısım (20–100 bin AU) her yöne dağılmış küresel bir kabuk. Yörüngeler milyonlarca yıl sürer.
+ */
+function oortCloud(rnd: () => number, n: number): Particle[] {
+  const out: Particle[] = [];
+  for (let i = 0; i < n; i++) {
+    const inner = rnd() < 0.35;
+    const a = inner ? 2000 * Math.pow(10, rnd()) : 20000 * Math.pow(5, rnd());
+    const inc = inner ? Math.abs(gauss(rnd)) * 30 * D2R : Math.acos(1 - 2 * rnd());
+    out.push({ a, phase: rnd() * Math.PI * 2, inc, node: rnd() * Math.PI * 2, bright: 0.5 + rnd() * 0.8 });
+  }
+  return out;
+}
+
+/** Görünürlük aralıkları: kameranın Güneş'e uzaklığına (AU) göre [görünme başı, tam, sönme başı, kayboluş]. */
+const FADE: Record<BeltId, [number, number, number, number]> = {
+  asteroid: [0, 0, 60, 300],
+  trojans: [0, 0, 60, 300],
+  kuiper: [0, 0, 1500, 6000],
+  // İçeriden bakınca gökyüzüne serpilmiş sahte yıldızlar gibi görünmesin diye uzaklaşınca belirir.
+  oort: [600, 4000, 3 * 63241, 30 * 63241],
+};
+const fade = (au: number, [a, b, c, d]: [number, number, number, number]) =>
+  (b > a ? THREE.MathUtils.smoothstep(au, a, b) : 1) * (1 - THREE.MathUtils.smoothstep(au, c, d));
+
 export function createBelts(scene: THREE.Scene, onPick: (b: BeltView) => void) {
   const rnd = mulberry32(20261111);
   const group = new THREE.Group();
@@ -165,9 +194,10 @@ export function createBelts(scene: THREE.Scene, onPick: (b: BeltView) => void) {
     { id: 'asteroid' as const, list: asteroidBelt(rnd, 7000), color: 0xb8a58c, size: 1.6, opacity: 0.75, locked: false, innerAU: 2.1, outerAU: 3.3, labelAU: 3.3, labelLon: 225 },
     { id: 'trojans' as const, list: trojans(rnd, 2400), color: 0xc9a77a, size: 1.6, opacity: 0.75, locked: true, innerAU: 5.0, outerAU: 5.4, labelAU: 5.2, labelLon: 0 },
     { id: 'kuiper' as const, list: kuiperBelt(rnd, 12000), color: 0x8fb3d9, size: 1.7, opacity: 0.6, locked: false, innerAU: 30, outerAU: 50, labelAU: 50, labelLon: 225 },
+    { id: 'oort' as const, list: oortCloud(rnd, 20000), color: 0x9fc0e8, size: 1.8, opacity: 0.7, locked: false, innerAU: 2000, outerAU: 100000, labelAU: 60000, labelLon: 200 },
   ];
 
-  const materials: { mat: THREE.ShaderMaterial; locked: boolean }[] = [];
+  const materials: { mat: THREE.ShaderMaterial; locked: boolean; id: BeltId }[] = [];
   const views: BeltView[] = [];
   const trojanFocus = new THREE.Object3D();
   group.add(trojanFocus);
@@ -175,7 +205,7 @@ export function createBelts(scene: THREE.Scene, onPick: (b: BeltView) => void) {
   for (const s of specs) {
     const pts = makePoints(s.list, s.color, s.size, s.opacity, s.locked);
     group.add(pts);
-    materials.push({ mat: pts.material as THREE.ShaderMaterial, locked: s.locked });
+    materials.push({ mat: pts.material as THREE.ShaderMaterial, locked: s.locked, id: s.id });
 
     const div = document.createElement('div');
     div.className = 'label belt-label';
@@ -189,7 +219,7 @@ export function createBelts(scene: THREE.Scene, onPick: (b: BeltView) => void) {
       // Etiket ve odak L4'te; her karede Jüpiter'le birlikte taşınır.
       trojanFocus.add(label);
       focus = trojanFocus;
-      viewRadius = 3;
+      viewRadius = 0.5 * AU;
     } else {
       const lon = s.labelLon * D2R;
       eclipticToScene({ x: Math.cos(lon) * s.labelAU, y: Math.sin(lon) * s.labelAU, z: 0 }, label.position);
@@ -210,11 +240,15 @@ export function createBelts(scene: THREE.Scene, onPick: (b: BeltView) => void) {
     setLabels(name: (id: BeltId) => string) {
       for (const v of views) v.label.element.textContent = name(v.id);
     },
-    update(ms: number, jupiter: Vec3) {
+    /** sunDist: kameranın Güneş'e uzaklığı (sahne birimi). */
+    update(ms: number, jupiter: Vec3, sunDist: number, selected: BeltId | null) {
+      const au = sunDist / AU;
+      for (const v of views) v.label.visible = v.id === selected || fade(au, FADE[v.id]) > 0.5;
       const years = (ms - J2000_MS) / DAY_MS / 365.25;
       const jLon = Math.atan2(jupiter.y, jupiter.x);
-      for (const { mat, locked } of materials) {
+      for (const { mat, locked, id } of materials) {
         mat.uniforms.uYears.value = years;
+        mat.uniforms.uFade.value = fade(au, FADE[id]);
         if (locked) mat.uniforms.uLockLon.value = jLon;
       }
       // L4 noktası: Jüpiter'in 60° önü.

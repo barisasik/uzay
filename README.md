@@ -2,6 +2,9 @@
 
 Tarayıcıda çalışan 3D uzay gezgini (Vite + TypeScript + Three.js).
 
+Her şey tek sahnede ve gerçek ölçekte (1 sahne birimi = 1000 km): bir uydunun yakınından
+Andromeda'ya kadar kesintisiz yakınlaştırılabilir. Ayrıntılar `src/scale.ts` içinde.
+
 ## Çalıştırma
 
 ```bash
