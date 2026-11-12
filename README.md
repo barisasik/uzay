@@ -5,6 +5,11 @@ Tarayıcıda çalışan 3D uzay gezgini (Vite + TypeScript + Three.js).
 Her şey tek sahnede ve gerçek ölçekte (1 sahne birimi = 1000 km): bir uydunun yakınından
 Andromeda'ya kadar kesintisiz yakınlaştırılabilir. Ayrıntılar `src/scale.ts` içinde.
 
+🚀 düğmesi uzay aracı panelini açar: araç, Dünya yörüngesindeki kurgusal Gezgin İstasyonu'ndan
+kalkıp hazır rotalarda (iç gezegenler, dev gezegenler, sistemin kıyısı, galaksiler arası) dolaşır.
+Dış görünüm ve kokpit kamerası, hız ayarı, duraklatma ve istasyona dönüş vardır. Araç ve istasyon
+kodla üretilir (`src/scene/spacecraft.ts`); yolculuk mantığı `src/tour/` içindedir.
+
 ## Çalıştırma
 
 ```bash

@@ -10,8 +10,12 @@ import { createBodyList, createLoader, createScaleBar, createUI, type Scope } fr
 import { simClock } from './time';
 import { createBelts, type BeltView } from './scene/belts';
 import { createGalaxies, type GalaxyView } from './scene/galaxies';
-import { beltText, galaxyName, t } from './i18n';
+import { beltText, bodyName, galaxyName, t } from './i18n';
 import { AU } from './scale';
+import { createShip, createStation } from './scene/spacecraft';
+import { Tour, type Stop } from './tour/tour';
+import { ROUTES, type RouteStop } from './tour/routes';
+import { createCockpitOverlay, createTourPanel } from './ui/tourPanel';
 
 // Tek sahne, gerçek ölçek (1 birim = 1000 km). Güneş dünya orijininde; galaksiler
 // aynı sahnede gerçek uzaklıklarında. Bkz. scale.ts.
@@ -24,14 +28,17 @@ document.body.appendChild(renderer.domElement);
 
 const labelRenderer = new CSS2DRenderer();
 labelRenderer.setSize(innerWidth, innerHeight);
-Object.assign(labelRenderer.domElement.style, { position: 'absolute', top: '0', left: '0', pointerEvents: 'none' });
+// zIndex: kendi katmanı olsun; etiketlerin derinlik sıralı z-index'leri kokpit çerçevesinin üstüne çıkmasın.
+Object.assign(labelRenderer.domElement.style, { position: 'absolute', top: '0', left: '0', pointerEvents: 'none', zIndex: '0' });
 document.body.appendChild(labelRenderer.domElement);
+const cockpit = createCockpitOverlay(); // etiketlerin üstünde, arayüzün altında
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x000004);
 
-// Yakın düzlem 100 m, uzak düzlem ~100 milyon ışık yılı; logaritmik derinlik ikisini de taşır.
-const camera = new THREE.PerspectiveCamera(50, innerWidth / innerHeight, 1e-4, 1e18);
+// Yakın düzlem 10 m (uzay aracına yakından bakılabilsin), uzak düzlem ~100 milyon ışık yılı;
+// logaritmik derinlik ikisini de taşır.
+const camera = new THREE.PerspectiveCamera(50, innerWidth / innerHeight, 1e-5, 1e18);
 camera.position.set(0, 1.4 * AU, 2.6 * AU); // iç gezegenlere genel bakış
 
 const controls = new OrbitControls(camera, renderer.domElement);
@@ -76,6 +83,83 @@ const sun = system.views.find((v) => v.id === 'sun')!;
 const galaxies = createGalaxies(scene, selectGalaxy, () => select(sun), galaxyName, t('galaxy.sunHere'));
 galaxies.setViewport(innerHeight, camera.fov);
 
+// ---------- İstasyon, uzay aracı ve yolculuklar ----------
+const earth = system.views.find((v) => v.id === 'earth')!;
+const station = createStation(scene, t('station.name'), selectStation);
+const ship = createShip();
+scene.add(ship.object);
+const tour = new Tour(ship, station.dock, camera, controls, rig, { onStop: showStop, onChange: syncTour });
+
+function stopFor(r: RouteStop): Stop {
+  if ('body' in r) return { kind: 'body', view: system.views.find((v) => v.id === r.body)!, name: bodyName(r.body) };
+  if ('galaxy' in r) return { kind: 'galaxy', view: galaxies.views.find((v) => v.id === r.galaxy)!, name: galaxyName(r.galaxy) };
+  return { kind: 'belt', view: belts.views.find((v) => v.id === r.belt)!, name: beltText(r.belt, 'name') };
+}
+
+const tourPanel = createTourPanel(
+  ROUTES.map((r) => ({ id: r.id, name: t(`route.${r.id}.name`) })),
+  {
+    onStart(id) {
+      const route = ROUTES.find((r) => r.id === id)!;
+      // Gezegenler ve istasyon gerçek hızında aksın (1 gün/sn'de istasyon saniyede 15 tur atar).
+      simClock.speed = 1;
+      ui.setSpeed(1);
+      tour.start(id, route.stops.map(stopFor));
+    },
+    onPause: () => tour.togglePause(),
+    onSpeed: (m) => tour.setSpeed(m),
+    onView: (v) => tour.setView(v),
+    onHome: () => tour.returnHome(),
+  },
+);
+ui.addButton(tourPanel.toggle);
+document.querySelector('.hud')!.append(tourPanel.root);
+
+function syncTour() {
+  cockpit.setVisible(tour.view === 'cockpit');
+  tourPanel.update(tour.status(), tour.displayView, tour.speed);
+}
+
+/** Yolculukta bir durağa varınca bilgi kartı (kamerayı etkilemez). */
+function showStop(s: Stop | null) {
+  clearSelection();
+  if (!s) {
+    bodyList.setSelected(null);
+    ui.hide();
+    return;
+  }
+  if (s.kind === 'body') {
+    selected = s.view;
+    setScope('solar');
+    ui.show(s.view);
+  } else if (s.kind === 'galaxy') {
+    selectedGalaxy = s.view;
+    setScope('galaxy');
+    ui.showGalaxy(s.view);
+  } else {
+    selectedBelt = s.view;
+    setScope('solar');
+    ui.showBelt(s.view);
+  }
+  bodyList.setSelected(s.view.id);
+}
+
+function selectStation() {
+  tour.detach();
+  clearSelection();
+  bodyList.setSelected(null);
+  rig.flyTo(station.object, station.radius);
+  ui.showInfo(
+    t('station.name'),
+    [
+      [t('info.type'), t('station.type')],
+      [t('info.altitude'), `${station.altitudeKm} ${t('unit.km')}`],
+      [t('info.period'), `${station.periodMin} ${t('unit.minute')}`],
+    ],
+    t('station.desc'),
+  );
+}
+
 const bodyList = createBodyList(system.views, select, belts.views, selectBelt, galaxies.views, selectGalaxy, setScope);
 
 function clearSelection() {
@@ -86,6 +170,7 @@ function clearSelection() {
 }
 
 function selectBelt(b: BeltView) {
+  tour.detach();
   clearSelection();
   selectedBelt = b;
   rig.flyTo(b.focus, b.viewRadius, b.id === 'trojans' ? 0.35 : 0.7);
@@ -95,6 +180,7 @@ function selectBelt(b: BeltView) {
 }
 
 function select(v: BodyView) {
+  tour.detach();
   clearSelection();
   selected = v;
   rig.flyTo(v.object, v.radius);
@@ -105,6 +191,7 @@ function select(v: BodyView) {
 }
 
 function selectGalaxy(g: GalaxyView) {
+  tour.detach();
   clearSelection();
   selectedGalaxy = g;
   // Yükseklik sınırı yok (-1): bakış yönü korunur; Andromeda'ya bizim taraftan bakınca
@@ -183,6 +270,7 @@ const allLabels = [
   ...belts.views.map((v) => v.label),
   ...galaxies.views.map((v) => v.label),
   ...galaxies.extraLabels,
+  station.label,
 ];
 const camDir = new THREE.Vector3();
 function hideLabelsBehindCamera() {
@@ -211,8 +299,13 @@ const loop = (now: number) => {
   const dt = Math.min(timer.getDelta(), 0.1);
   simClock.tick(dt);
   system.update(simClock.ms);
-  rig.update(dt);
-  controls.update();
+  station.update(earth.object.position, simClock.ms, dt);
+  tour.update(dt);
+  if (tour.drivesCamera) tour.updateCamera(dt);
+  else {
+    rig.update(dt);
+    controls.update();
+  }
 
   const sunDist = camera.position.length(); // Güneş orijinde
   const focal = focalPx();
@@ -220,6 +313,7 @@ const loop = (now: number) => {
   system.updateLabels(camera, selected, sunDist, focal);
   galaxies.updateLabels(camera, selectedGalaxy, sunDist);
   starfield.update(camera, sunDist);
+  station.label.visible = camera.position.distanceTo(earth.object.position) < 150; // ~25 Dünya yarıçapı
   hideLabelsBehindCamera();
   scaleBar.update(camera.position.distanceTo(controls.target) / focal);
 
@@ -228,6 +322,7 @@ const loop = (now: number) => {
   if (listTimer > 0.25) {
     listTimer = 0;
     bodyList.update();
+    syncTour();
   }
   ui.setDate(simClock.ms);
   renderer.render(scene, camera);

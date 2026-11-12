@@ -278,6 +278,7 @@ export function createUI(h: UIHandlers, initialSpeed: number) {
   const bar = el('div', 'topbar');
   const date = el('div', 'date');
   const speeds = el('div', 'group');
+  const speedBtns: { value: number; b: HTMLButtonElement }[] = [];
   for (const s of SPEEDS) {
     const b = el('button', s.value === initialSpeed ? 'active' : '', t(s.key));
     b.onclick = () => {
@@ -286,6 +287,7 @@ export function createUI(h: UIHandlers, initialSpeed: number) {
       h.onSpeed(s.value);
     };
     speeds.append(b);
+    speedBtns.push({ value: s.value, b });
   }
   const today = el('button', 'today', t('ui.today'));
   today.onclick = h.onToday;
@@ -320,6 +322,23 @@ export function createUI(h: UIHandlers, initialSpeed: number) {
   };
 
   return {
+    /** Üst çubuğa düğme ekler (etiketler düğmesinin ardına). */
+    addButton(b: HTMLElement) {
+      labels.after(b);
+    },
+    /** Zaman hızı dışarıdan değişince düğmeleri eşitle. */
+    setSpeed(value: number) {
+      for (const s of speedBtns) s.b.classList.toggle('active', s.value === value);
+    },
+    /** Serbest içerikli bilgi kartı (ör. istasyon). */
+    showInfo(titleText: string, items: [string, string][], descText: string) {
+      title.textContent = titleText;
+      desc.textContent = descText;
+      rows.replaceChildren();
+      distanceCell = null;
+      for (const [k, v] of items) row(k, v);
+      panel.classList.remove('hidden');
+    },
     setDate(ms: number) {
       date.textContent = dateFmt.format(ms);
     },

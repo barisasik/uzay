@@ -252,6 +252,59 @@ button.active { background: var(--accent); border-color: var(--accent); color: #
   background: rgba(10, 14, 24, 0.35);
 }
 
+/* ---------- Uzay aracı paneli ---------- */
+.hud { flex-direction: column; align-items: center; gap: 8px; }
+.tour {
+  pointer-events: auto;
+  position: fixed;
+  left: calc(var(--sl) + 222px);
+  right: var(--sr);
+  bottom: calc(var(--sb) + 30px);
+  width: fit-content;
+  max-width: calc(100vw - var(--sl) - var(--sr) - 240px);
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 12px 9px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  backdrop-filter: blur(8px);
+  font-size: 13px;
+}
+.tour.hidden { display: none; }
+.tour .head { display: flex; justify-content: space-between; align-items: center; font-weight: 600; }
+.tour .head .close { border: none; padding: 0 6px; font-size: 18px; line-height: 1; }
+.tour .row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; justify-content: center; }
+.tour .group { display: flex; gap: 3px; align-items: center; }
+.tour .group .lbl { color: var(--muted); font-size: 12px; margin-right: 3px; }
+.tour .group button { padding: 5px 8px; font-size: 12.5px; }
+.tour select {
+  font: inherit; font-size: 13px; color: var(--text); background: rgba(20, 26, 42, 0.9);
+  border: 1px solid var(--border); border-radius: 8px; padding: 6px 8px; max-width: 240px;
+}
+.tour button:disabled { opacity: 0.4; cursor: default; border-color: var(--border); }
+.tour .start { background: var(--accent); border-color: var(--accent); color: #fff; }
+.tour .readout {
+  text-align: center; color: #c9d2e6; font-size: 12.5px; min-height: 1.3em;
+  font-variant-numeric: tabular-nums; max-width: 560px;
+}
+.topbar .tour-toggle { font-size: 15px; line-height: 1; padding-left: 9px; padding-right: 9px; }
+.label.station-label { font-size: 11px; color: #ffe2a8; }
+
+.cockpit { position: fixed; inset: 0; pointer-events: none; }
+.cockpit.hidden { display: none; }
+.cockpit svg { width: 100%; height: 100%; display: block; }
+.cockpit .reticle {
+  position: absolute; left: 50%; top: 44%; width: 26px; height: 26px; margin: -13px 0 0 -13px;
+  border: 1.5px solid rgba(127, 212, 255, 0.55); border-radius: 50%;
+}
+.cockpit .reticle::after {
+  content: ''; position: absolute; left: 50%; top: 50%; width: 3px; height: 3px; margin: -1.5px 0 0 -1.5px;
+  background: rgba(127, 212, 255, 0.8); border-radius: 50%;
+}
+
 /* ---------- Dokunmatik: daha büyük hedefler ---------- */
 @media (pointer: coarse) {
   button { padding: 9px 10px; }
@@ -269,6 +322,10 @@ button.active { background: var(--accent); border-color: var(--accent); color: #
   .credits { left: 50%; transform: translateX(-50%); bottom: calc(var(--sb) + 6px); font-size: 10px; white-space: nowrap; }
   .bodylist { max-height: calc(100dvh - var(--st) - var(--sb) - 138px); }
   .panel { top: var(--st); right: var(--sr); max-height: calc(100dvh - var(--st) - var(--sb) - 148px); }
+  /* Panel, alt çubuğun hemen üstünde, onunla aynı kapta */
+  .tour { position: static; order: -1; max-width: 100%; margin: 0; }
+  .tour-open .bodylist { max-height: calc(100dvh - var(--st) - var(--sb) - 250px); }
+  .tour-open .panel { max-height: calc(100dvh - var(--st) - var(--sb) - 260px); }
 }
 @media (max-width: 900px) {
   .topbar { gap: 5px; padding: 8px 10px; }
@@ -277,4 +334,7 @@ button.active { background: var(--accent); border-color: var(--accent); color: #
 }
 @media (max-width: 720px) {
   .panel { width: auto; left: var(--sl); top: auto; bottom: calc(var(--sb) + 130px); max-height: 45dvh; }
+  .tour-open .panel { bottom: calc(var(--sb) + 330px); max-height: 28dvh; }
+  .tour-open .bodylist { max-height: calc(100dvh - var(--st) - var(--sb) - 395px); }
+  .tour .readout { font-size: 12px; }
 }
