@@ -62,7 +62,7 @@ const ui = createUI(
       labelsOn = on;
       labelRenderer.domElement.style.display = on ? '' : 'none';
     },
-    onClose: deselect,
+    onClose: closePanel,
   },
   simClock.speed,
 );
@@ -115,14 +115,15 @@ function selectGalaxy(g: GalaxyView) {
   ui.showGalaxy(g);
 }
 
-function deselect() {
-  clearSelection();
-  bodyList.setSelected(null);
-  rig.release();
+/**
+ * Bilgi panelini kapatır; kamera seçili cismi izlemeye ve görünüm olduğu gibi kalır.
+ * (Kamera bırakılsaydı hareket eden gezegen ekrandan kayıp giderdi.)
+ */
+function closePanel() {
   ui.hide();
 }
 
-addEventListener('keydown', (e) => e.key === 'Escape' && deselect());
+addEventListener('keydown', (e) => e.key === 'Escape' && closePanel());
 
 /** Sol listede hangi bölüm görünsün (kamerayı etkilemez). */
 let scope: Scope = 'solar';
