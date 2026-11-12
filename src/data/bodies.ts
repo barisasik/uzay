@@ -3,15 +3,18 @@
 // - Yörünge elemanları: JPL "Approximate Positions of the Planets", Tablo 1 (1800–2050)
 //   https://ssd.jpl.nasa.gov/planets/approx_pos.html
 // - Ay ortalama elemanları: Meeus, "Astronomical Algorithms" (J2000)
+// - Plüton: 2006'dan beri resmî olarak cüce gezegen; burada gezegen olarak gösterilir.
+//   Elemanları JPL tablosunun Plüton'u da içeren önceki sürümünden (Standish, 1800–2050).
 
-export type PlanetId = 'mercury' | 'venus' | 'earth' | 'mars' | 'jupiter' | 'saturn' | 'uranus' | 'neptune';
+export type PlanetId = 'mercury' | 'venus' | 'earth' | 'mars' | 'jupiter' | 'saturn' | 'uranus' | 'neptune' | 'pluto';
 
 export type SatelliteId =
   | 'phobos' | 'deimos'
   | 'io' | 'europa' | 'ganymede' | 'callisto'
   | 'mimas' | 'enceladus' | 'tethys' | 'dione' | 'rhea' | 'titan' | 'iapetus'
   | 'miranda' | 'ariel' | 'umbriel' | 'titania' | 'oberon'
-  | 'triton';
+  | 'triton'
+  | 'charon';
 
 export type BodyId = 'sun' | PlanetId | 'moon' | SatelliteId;
 
@@ -120,6 +123,13 @@ export const PLANETS: PlanetData[] = [
     el:   E(30.06992276, 0.00859048, 1.77004347, -55.12002969, 44.96476227, 131.78422574),
     rate: E(0.00026291, 0.00005105, 0.00035372, 218.45945325, -0.32241464, -0.00508664),
   },
+  {
+    // Doku yordamsal (scripts/make-pluto-texture.mjs). Eğiklik >90°: ters yönde döner.
+    id: 'pluto', radiusKm: 1_188.3, periodDays: 90_560, color: 0xd9c2a5,
+    tiltDeg: 122.53, rotationDays: 6.3872, texture: 'pluto',
+    el:   E(39.48211675, 0.2488273, 17.14001206, 238.92903833, 224.06891629, 110.30393684),
+    rate: E(-0.00031596, 0.0000517, 0.00004818, 145.20780515, -0.04062942, -0.01183482),
+  },
 ];
 
 /**
@@ -160,6 +170,7 @@ export const SATELLITES: SatelliteData[] = [
   { id: 'titania',   parent: 'uranus',  radiusKm: 788.4,  aKm: 436_300,   periodDays: 8.705872,  color: 0xcac0b2, texture: 'moon' },
   { id: 'oberon',    parent: 'uranus',  radiusKm: 761.4,  aKm: 583_519,   periodDays: 13.463239, color: 0xb8ae9e, texture: 'moon' },
   { id: 'triton',    parent: 'neptune', radiusKm: 1_353.4, aKm: 354_759,  periodDays: -5.876854, color: 0xe0d4c8, texture: 'moon' },
+  { id: 'charon',    parent: 'pluto',   radiusKm: 606,    aKm: 19_591,    periodDays: 6.3872,    color: 0xa8a29a, texture: 'moon' },
 ];
 
 /** Satürn halkaları (km): C halkası iç kenarı → A halkası dış kenarı */

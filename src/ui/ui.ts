@@ -330,6 +330,7 @@ export function createUI(h: UIHandlers, initialSpeed: number) {
       distanceCell = null;
       row(t('info.diameter'), `${n(v.radiusKm * 2, 0)} ${t('unit.km')}`);
       if (v.kind === 'star') row(t('info.type'), t('body.sun.type'));
+      if (v.id === 'pluto') row(t('info.type'), t('body.pluto.type'));
       if (v.kind === 'planet') distanceCell = row(t('info.distance'), '');
       if (v.parent) row(t('info.parent'), bodyName(v.parent.id));
       if (v.parentDistanceKm !== null) row(t('info.distanceParent'), `${n(v.parentDistanceKm, 0)} ${t('unit.km')}`);

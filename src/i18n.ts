@@ -141,7 +141,11 @@ const tr = {
   'body.uranus.name': 'Uranüs',
   'body.uranus.desc': "Ekseni neredeyse yan yatmıştır; Güneş'in etrafında yuvarlanır gibi döner.",
   'body.neptune.name': 'Neptün',
-  'body.neptune.desc': "Güneş'e en uzak gezegen. Güneş Sistemi'nin en hızlı rüzgârları burada eser.",
+  'body.neptune.desc': "Resmî olarak Güneş'e en uzak gezegen. Güneş Sistemi'nin en hızlı rüzgârları burada eser.",
+  'body.pluto.name': 'Plüton',
+  'body.pluto.type': 'Cüce gezegen (eski 9. gezegen)',
+  'body.pluto.desc':
+    "1930'da keşfedildi; 2006'da Uluslararası Astronomi Birliği onu cüce gezegen sınıfına aldı. Kuiper Kuşağı'nın en büyük cisimlerindendir. Yörüngesi o kadar basık ve eğik ki 248 yıllık turunun 20 yılında Neptün'den daha yakına gelir. 2015'te New Horizons aracının fotoğrafladığı kalp biçimli parlak bölge (Tombaugh Regio) donmuş azot buzudur. Doku, bu bölgeleri yaklaşık olarak gösteren temsili bir çizimdir.",
 
   'body.phobos.name': 'Phobos',
   'body.phobos.desc': "Mars'ın büyük uydusu. Mars'a o kadar yakın ki her yüzyılda yaklaşık 2 m yaklaşıyor; milyonlarca yıl sonra parçalanıp halka olabilir.",
@@ -181,6 +185,8 @@ const tr = {
   'body.oberon.desc': "Uranüs'ün en dıştaki büyük uydusu; eski ve yoğun kraterli bir yüzeye sahiptir.",
   'body.triton.name': 'Triton',
   'body.triton.desc': "Neptün'ün en büyük uydusu. Gezegenin dönüşünün tersine dolanır; muhtemelen Kuiper Kuşağı'ndan yakalanmıştır. Azot gayzerleri vardır.",
+  'body.charon.name': 'Charon',
+  'body.charon.desc': "Plüton'un en büyük uydusu; çapı Plüton'unkinin yarısı kadar. İkisi birbirine kilitlidir: hep aynı yüzlerini birbirine döner ve ortak kütle merkezleri Plüton'un dışında kalır. Kuzey kutbundaki kızıl bölgeye Mordor Macula denir.",
 } as const;
 
 export type Key = keyof typeof tr;

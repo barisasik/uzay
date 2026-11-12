@@ -32,6 +32,9 @@ node scripts/convert-textures.mjs <klasör>
   [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). 2K sürümler WebP'ye dönüştürülmüştür.
   (Kullanılanlar: sun, mercury, venus_atmosphere, earth_daymap, earth_clouds, moon, mars, jupiter,
   saturn, saturn_ring_alpha, uranus, neptune)
+- **Plüton dokusu:** New Horizons görüntülerindeki ana bölgelere göre yordamsal olarak üretilmiştir
+  (`node scripts/make-pluto-texture.mjs`); bilimsel bir harita değildir.
+- **Plüton yörünge elemanları:** E. M. Standish, JPL "Keplerian Elements for Approximate Positions" (1800–2050)
 - **Gezegen yörünge elemanları:** NASA JPL, [Approximate Positions of the Planets](https://ssd.jpl.nasa.gov/planets/approx_pos.html)
 - **Yarıçap, dönüş süresi, eksen eğikliği:** NASA [Planetary Fact Sheet](https://nssdc.gsfc.nasa.gov/planetary/factsheet/)
 - **Ay ortalama yörünge elemanları:** J. Meeus, *Astronomical Algorithms*
